@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Moguri/panda3d-gltf.svg?branch=master)](https://travis-ci.org/Moguri/panda3d-gltf)
+
 # panda3d-gltf
 This project is a glTF to BAM converter based on code from [BlenderPanda](https://github.com/Moguri/BlenderPanda)
 
