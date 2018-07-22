@@ -54,7 +54,8 @@ class Converter():
             self.load_mesh(meshid, gltf_mesh, gltf_data)
 
         for nodeid, gltf_node in enumerate(gltf_data.get('nodes', [])):
-            node = self.nodes.get(nodeid, PandaNode(gltf_node['name']))
+            node_name = gltf_node.get('name', 'node'+str(nodeid))
+            node = self.nodes.get(nodeid, PandaNode(node_name))
             self.nodes[nodeid] = node
 
         # If we support writing bam 6.40, we can safely write out
@@ -69,7 +70,8 @@ class Converter():
                 print("Could not find node with index: {}".format(nodeid))
                 return
 
-            if gltf_node['name'] in self._joint_nodes:
+            node_name = gltf_node.get('name', 'node'+str(nodeid))
+            if node_name in self._joint_nodes:
                 # don't handle joints here
                 return
             panda_node = self.nodes[nodeid]
@@ -85,7 +87,7 @@ class Converter():
                 np_tmp = np
 
                 if 'skin' in gltf_node:
-                    char = self.characters[gltf_node['name']]
+                    char = self.characters[node_name]
                     np_tmp = np.attach_new_node(char)
 
                 mesh = self.meshes[gltf_node['mesh']]
@@ -149,7 +151,7 @@ class Converter():
                         print("Unknown collision shape ({}) for object ({})".format(shape_type, nodeid))
 
                     if shape is not None:
-                        phynode = bullet.BulletRigidBodyNode(gltf_node['name'])
+                        phynode = bullet.BulletRigidBodyNode(node_name)
                         phynode.add_shape(shape)
                         np.attach_new_node(phynode)
                         if not static:
@@ -192,7 +194,8 @@ class Converter():
                     geomnode.reparent_to(tmp)
 
         for sceneid, gltf_scene in enumerate(gltf_data.get('scenes', [])):
-            scene_root = NodePath(ModelRoot(gltf_scene['name']))
+            scene_name = gltf_node.get('name', 'scene'+str(sceneid))
+            scene_root = NodePath(ModelRoot(scene_name))
 
             node_list = gltf_scene['nodes']
             if 'extras' in gltf_scene and 'hidden_nodes' in gltf_scene['extras']:
@@ -264,7 +267,7 @@ class Converter():
 
     def load_texture(self, texid, gltf_tex, gltf_data):
         if 'source' not in gltf_tex:
-            print("Texture '{}' has no source, skipping".format(gltf_tex['name']))
+            print("Texture '{}' has no source, skipping".format(texid))
             return
 
         source = gltf_data['images'][gltf_tex['source']]
@@ -281,12 +284,13 @@ class Converter():
         self.textures[texid] = texture
 
     def load_material(self, matid, gltf_mat):
+        matname = gltf_mat.get('name', 'mat'+str(matid))
         state = self.mat_states.get(matid, RenderState.make_empty())
 
         if matid not in self.mat_mesh_map:
             self.mat_mesh_map[matid] = []
 
-        pmat = Material(gltf_mat['name'])
+        pmat = Material(matname)
         pbr_fallback = {'index': '__bp-pbr-fallback', 'texcoord': 0}
         textures = []
 
@@ -708,7 +712,8 @@ class Converter():
         self.meshes[meshid] = node
 
     def load_camera(self, camid, gltf_camera):
-        node = self.cameras.get(camid, Camera(gltf_camera['name']))
+        camname = gltf_node.get('name', 'cam'+str(camid))
+        node = self.cameras.get(camid, Camera(camname))
 
         if gltf_camera['type'] == 'perspective':
             gltf_lens = gltf_camera['perspective']
@@ -722,7 +727,7 @@ class Converter():
 
     def load_light(self, lightid, gltf_light):
         node = self.lights.get(lightid, None)
-        lightname = gltf_light['name']
+        lightname = gltf_node.get('name', 'light'+str(lightid))
 
         ltype = gltf_light['type']
         # Construct a new light if needed
