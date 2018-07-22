@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import math
 import base64
 import struct
