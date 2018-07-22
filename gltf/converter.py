@@ -3,7 +3,7 @@ from __future__ import print_function
 import math
 import base64
 import struct
-import pprint
+import pprint # pylint: disable=unused-import
 
 from panda3d.core import * # pylint: disable=wildcard-import
 try:
@@ -41,7 +41,8 @@ class Converter():
             self.load_camera(camid, gltf_cam)
 
         if 'extensions' in gltf_data and 'KHR_lights' in gltf_data['extensions']:
-            for lightid, gltf_light in enumerate(gltf_data['extensions']['KHR_lights'].get('lights', [])):
+            lights = gltf_data['extensions']['KHR_lights'].get('lights', [])
+            for lightid, gltf_light in enumerate(lights):
                 self.load_light(lightid, gltf_light)
 
         for texid, gltf_tex in enumerate(gltf_data.get('textures', [])):
@@ -118,7 +119,10 @@ class Converter():
                         try:
                             geomnode = self.meshes[collision_shape['mesh']]
                         except KeyError:
-                            print("Could not find physics mesh ({}) for object ({})".format(collision_shape['mesh'], nodeid))
+                            print(
+                                "Could not find physics mesh ({}) for object ({})"
+                                .format(collision_shape['mesh'], nodeid)
+                            )
 
                     shape_type = collision_shape['shapeType']
                     if shape_type == 'BOX':
@@ -427,9 +431,15 @@ class Converter():
 
             # Create default animaton data
             translation, rotation, scale = self.decompose_matrix(joint_mat)
-            loc_vals = list(zip(*[(translation.get_x(), translation.get_y(), translation.get_z()) for i in range(num_frames)]))
-            rot_vals = list(zip(*[(rotation.get_x(), rotation.get_y(), rotation.get_z()) for i in range(num_frames)]))
-            scale_vals = list(zip(*[(scale.get_x(), scale.get_y(), scale.get_z()) for i in range(num_frames)]))
+            loc_vals = list(zip(
+                *[(translation.get_x(), translation.get_y(), translation.get_z()) for i in range(num_frames)]
+            ))
+            rot_vals = list(zip(
+                *[(rotation.get_x(), rotation.get_y(), rotation.get_z()) for i in range(num_frames)]
+            ))
+            scale_vals = list(zip(
+                *[(scale.get_x(), scale.get_y(), scale.get_z()) for i in range(num_frames)]
+            ))
 
             # Override defaults with any found animation data
             if get_accessor('translation') is not None:
@@ -458,10 +468,9 @@ class Converter():
         create_anim_channel(skeleton, root_bone_id)
         character.add_child(AnimBundleNode(character.name, bundle))
 
-    def create_character(self, nodeid, gltf_node, gltf_skin, gltf_data):
+    def create_character(self, gltf_node, gltf_skin, gltf_data):
         #print("Creating skinned mesh for", gltf_mesh['name'])
         root = gltf_data['nodes'][gltf_skin['skeleton']]
-        skel_name = root['name']
 
         character = Character(gltf_node['name'])
         bundle = character.get_bundle(0)
@@ -547,7 +556,7 @@ class Converter():
 
         if is_skinned:
             # Find all nodes that use this mesh and try to find a skin
-            nodeid, gltf_node = [
+            _, gltf_node = [
                 (i, gltf_node)
                 for i, gltf_node in enumerate(gltf_data['nodes'])
                 if 'mesh' in gltf_node and meshid == gltf_node['mesh'] and 'skin' in gltf_node
@@ -555,7 +564,7 @@ class Converter():
             #gltf_node = [gltf_node for gltf_node in gltf_nodes if 'skin' in gltf_node][0]
             gltf_skin = gltf_data['skins'][gltf_node['skin']]
 
-            jvtmap = self.create_character(nodeid, gltf_node, gltf_skin, gltf_data)
+            jvtmap = self.create_character(gltf_node, gltf_skin, gltf_data)
             tb_va = GeomVertexArrayFormat()
             tb_va.add_column(InternalName.get_transform_blend(), 1, GeomEnums.NTUint16, GeomEnums.CIndex)
             tbtable = TransformBlendTable()
@@ -676,10 +685,16 @@ class Converter():
             # Get a material
             matid = gltf_primitive.get('material', None)
             if matid is None:
-                print("Warning: mesh {} has a primitive with no material, using an empty RenderState".format(meshid))
+                print(
+                    "Warning: mesh {} has a primitive with no material, using an empty RenderState"
+                    .format(meshid)
+                )
                 mat = RenderState.make_empty()
             elif matid not in self.mat_states:
-                print("Warning: material with name {} has no associated mat state, using an empty RenderState".format(matid))
+                print(
+                    "Warning: material with name {} has no associated mat state, using an empty RenderState"
+                    .format(matid)
+                )
                 mat = RenderState.make_empty()
             else:
                 mat = self.mat_states[gltf_primitive['material']]
@@ -713,7 +728,6 @@ class Converter():
 
         ltype = gltf_light['type']
         # Construct a new light if needed
-        # TODO handle switching light types
         if node is None:
             if ltype == 'point':
                 node = PointLight(lightname)
@@ -750,14 +764,13 @@ def main():
     import sys
     import json
 
-    # TODO better arg parsing and help/usage display
     if len(sys.argv) < 2:
         print("Missing glTF srouce file argument")
     elif len(sys.argv) < 3:
         print("Missing bam destination file argument")
 
-    with open(sys.argv[1]) as f:
-        gltf_data = json.load(f)
+    with open(sys.argv[1]) as gltf_file:
+        gltf_data = json.load(gltf_file)
 
     dstfname = Filename.fromOsSpecific(sys.argv[2])
     get_model_path().prepend_directory(dstfname.getDirname())
