@@ -769,13 +769,19 @@ def main():
 
     if len(sys.argv) < 2:
         print("Missing glTF srouce file argument")
-    elif len(sys.argv) < 3:
+        sys.exit(1)
+    elif len(sys.argv) < 3 and not sys.argv[1].endswith('.gltf'):
         print("Missing bam destination file argument")
+        sys.exit(1)
 
-    with open(sys.argv[1]) as gltf_file:
+    infile = sys.argv[1]
+    outfile = sys.argv[2] if len(sys.argv) > 2 else infile.replace('.gltf', '.bam')
+    print(infile, outfile)
+
+    with open(infile) as gltf_file:
         gltf_data = json.load(gltf_file)
 
-    dstfname = Filename.fromOsSpecific(sys.argv[2])
+    dstfname = Filename.fromOsSpecific(outfile)
     get_model_path().prepend_directory(dstfname.getDirname())
 
     converter = Converter()
