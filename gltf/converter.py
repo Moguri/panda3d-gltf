@@ -194,7 +194,7 @@ class Converter():
                     geomnode.reparent_to(tmp)
 
         for sceneid, gltf_scene in enumerate(gltf_data.get('scenes', [])):
-            scene_name = gltf_node.get('name', 'scene'+str(sceneid))
+            scene_name = gltf_scene.get('name', 'scene'+str(sceneid))
             scene_root = NodePath(ModelRoot(scene_name))
 
             node_list = gltf_scene['nodes']
