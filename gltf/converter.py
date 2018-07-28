@@ -712,7 +712,6 @@ class Converter():
 
             vformat.add_array(varray_blends)
             vformat.add_array(varray_skin)
-        print(reg_format, vformat)
         reg_format = GeomVertexFormat.register_format(vformat)
         vdata = vdata.convert_to(reg_format)
 
