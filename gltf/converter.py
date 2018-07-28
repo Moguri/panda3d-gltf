@@ -361,14 +361,63 @@ class Converter():
         else:
             uri = Filename.fromOsSpecific(uri)
         texture = TexturePool.load_texture(uri, 0, False, LoaderOptions())
-        use_srgb = False
-        if 'format' in gltf_tex and gltf_tex['format'] in (0x8C40, 0x8C42):
-            use_srgb = True
-        elif 'internalFormat' in gltf_tex and gltf_tex['internalFormat'] in (0x8C40, 0x8C42):
-            use_srgb = True
 
-        if use_srgb:
-            self.make_texture_srgb(texture)
+        gltf_sampler = gltf_data['samplers'][gltf_tex['sampler']]
+        if 'magFilter' in gltf_sampler:
+            if gltf_sampler['magFilter'] == 9728:
+                texture.set_magfilter(SamplerState.FT_nearest)
+            elif gltf_sampler['magFilter'] == 9729:
+                texture.set_magfilter(SamplerState.FT_linear)
+            else:
+                print(
+                    "Sampler {} has unsupported magFilter type {}"
+                    .format(gltf_tex['sampler'], gltf_sampler['magFilter'])
+                )
+        if 'minFilter' in gltf_sampler:
+            if gltf_sampler['minFilter'] == 9728:
+                texture.set_minfilter(SamplerState.FT_nearest)
+            elif gltf_sampler['minFilter'] == 9729:
+                texture.set_minfilter(SamplerState.FT_linear)
+            elif gltf_sampler['minFilter'] == 9984:
+                texture.set_minfilter(SamplerState.FT_nearest_mipmap_nearest)
+            elif gltf_sampler['minFilter'] == 9985:
+                texture.set_minfilter(SamplerState.FT_linear_mipmap_nearest)
+            elif gltf_sampler['minFilter'] == 9986:
+                texture.set_minfilter(SamplerState.FT_nearest_mipmap_linear)
+            elif gltf_sampler['minFilter'] == 9987:
+                texture.set_minfilter(SamplerState.FT_linear_mipmap_linear)
+            else:
+                print(
+                    "Sampler {} has unsupported minFilter type {}"
+                    .format(gltf_tex['sampler'], gltf_sampler['minFilter'])
+                )
+
+        wraps = gltf_sampler.get('wrapS', 10497)
+        if wraps == 33071:
+            texture.set_wrap_u(SamplerState.WM_clamp)
+        elif wraps == 33648:
+            texture.set_wrap_u(SamplerState.WM_mirror)
+        elif wraps == 10497:
+            texture.set_wrap_u(SamplerState.WM_repeat)
+        else:
+            print(
+                "Sampler {} has unsupported wrapS type {}"
+                .format(gltf_tex['sampler'], gltf_sampler['wrapS'])
+            )
+
+        wrapt = gltf_sampler.get('wrapT', 10497)
+        if wrapt == 33071:
+            texture.set_wrap_v(SamplerState.WM_clamp)
+        elif wrapt == 33648:
+            texture.set_wrap_v(SamplerState.WM_mirror)
+        elif wrapt == 10497:
+            texture.set_wrap_v(SamplerState.WM_repeat)
+        else:
+            print(
+                "Sampler {} has unsupported wrapT type {}"
+                .format(gltf_tex['sampler'], gltf_sampler['wrapT'])
+            )
+
         self.textures[texid] = texture
 
     def load_material(self, matid, gltf_mat):
@@ -380,21 +429,21 @@ class Converter():
 
         pmat = Material(matname)
         pbr_fallback = {'index': '__bp-pbr-fallback', 'texcoord': 0}
-        textures = []
+        texinfos = []
 
         if 'pbrMetallicRoughness' in gltf_mat:
             pbrsettings = gltf_mat['pbrMetallicRoughness']
 
             pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-            textures.append(pbrsettings.get('baseColorTexture', pbr_fallback)['index'])
-            if textures[-1] in self.textures:
-                self.make_texture_srgb(self.textures[textures[-1]])
+            texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+            if texinfos[-1]['index'] in self.textures:
+                self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
             pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
-            textures.append(pbrsettings.get('metallicTexture', pbr_fallback)['index'])
+            texinfos.append(pbrsettings.get('metallicTexture', pbr_fallback))
 
             pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
-            textures.append(pbrsettings.get('roughnessTexture', pbr_fallback)['index'])
+            texinfos.append(pbrsettings.get('roughnessTexture', pbr_fallback))
 
         if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
             matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
@@ -402,48 +451,45 @@ class Converter():
             pmat.set_ambient(LColor(*matsettings['ambientFactor']))
 
             if 'diffuseTexture' in matsettings:
-                texture = matsettings['diffuseTexture']
-                textures.append(texture)
-                if matsettings['diffuseTextureSrgb'] and texture in self.textures:
+                texinfo = matsettings['diffuseTexture']
+                texinfos.append(texinfo)
+                if matsettings['diffuseTextureSrgb'] and texinfo['index'] in self.textures:
                     self.make_texture_srgb(self.textures[texture])
             else:
                 pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
 
             if 'emissionTexture' in matsettings:
-                texture = matsettings['emissionTexture']
-                textures.append(texture)
-                if matsettings['emissionTextureSrgb'] and texture in self.textures:
+                texinfo = matsettings['emissionTexture']
+                texinfos.append(texture)
+                if matsettings['emissionTextureSrgb'] and texinfo['index'] in self.textures:
                     self.make_texture_srgb(self.textures[texture])
             else:
                 pmat.set_emission(LColor(*matsettings['emissionFactor']))
 
             if 'specularTexture' in matsettings:
-                texture = matsettings['specularTexture']
-                textures.append(texture)
-                if matsettings['specularTextureSrgb'] and texture in self.textures:
+                texinfo = matsettings['specularTexture']
+                texinfos.append(texture)
+                if matsettings['specularTextureSrgb'] and texinfo['index'] in self.textures:
                     self.make_texture_srgb(self.textures[texture])
             else:
                 pmat.set_specular(LColor(*matsettings['specularFactor']))
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
-
         state = state.set_attrib(MaterialAttrib.make(pmat))
+        tex_attrib = TextureAttrib.make()
 
-        for i, tex in enumerate(textures):
-            texdata = self.textures.get(tex, None)
+        for i, texinfo in enumerate(texinfos):
+            print(i, texinfo)
+            texdata = self.textures.get(texinfo['index'], None)
             if texdata is None:
                 print("Could not find texture for key: {}".format(tex))
                 continue
 
-            tex_attrib = TextureAttrib.make()
             texstage = TextureStage(str(i))
-            texstage.set_texcoord_name(InternalName.get_texcoord_name('0'))
-
-            if texdata.get_num_components() == 4:
-                state = state.set_attrib(TransparencyAttrib.make(TransparencyAttrib.M_alpha))
-
+            texstage.set_texcoord_name(InternalName.get_texcoord_name(str(texinfo.get('texcoord', 0))))
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
-            state = state.set_attrib(tex_attrib)
+
+        state = state.set_attrib(tex_attrib)
 
         # Remove stale meshes
         self.mat_mesh_map[matid] = [
@@ -658,8 +704,7 @@ class Converter():
                 attrib_parts = acc['attrib'].lower().split('_')
                 attrib_name = self._ATTRIB_NAME_MAP.get(attrib_parts[0], attrib_parts[0])
                 if attrib_name == 'texcoord' and len(attrib_parts) > 1:
-                    print(attrib_parts)
-                    internal_name = InternalName.make(attrib_name, int(attrib_parts[1]))
+                    internal_name = InternalName.make(attrib_name+'.', int(attrib_parts[1]))
                 else:
                     internal_name = InternalName.make(attrib_name)
                 num_components = self._COMPONENT_NUM_MAP[acc['type']]
