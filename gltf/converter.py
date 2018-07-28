@@ -733,14 +733,15 @@ class Converter():
 
         # Construct primitive
         primitiveid = geom_node.get_num_geoms()
+        primitivemode = gltf_primitive.get('mode', 4)
         try:
-            prim = self._PRIMITIVE_MODE_MAP[gltf_primitive['mode']](GeomEnums.UH_static)
+            prim = self._PRIMITIVE_MODE_MAP[primitivemode](GeomEnums.UH_static)
         except KeyError:
             print(
-                "Warning: primitive {} on mesh {} has an unsupported mode"
-                .format(primitiveid, geom_node.name)
+                "Warning: primitive {} on mesh {} has an unsupported mode: {}"
+                .format(primitiveid, geom_node.name, primitivemode)
             )
-            prim = GeomPoints(GeomEnums.UH_static)
+            return
 
         if 'indices' in gltf_primitive:
             index_acc = gltf_data['accessors'][gltf_primitive['indices']]
