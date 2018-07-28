@@ -672,7 +672,7 @@ class Converter():
                         buffview['buffer'],
                         acc['byteOffset'] + buffview['byteOffset'],
                         acc['count'],
-                        4 * num_components
+                        buffview.get('byteStride', 4 * num_components)
                     ))
 
             if is_interleaved:
