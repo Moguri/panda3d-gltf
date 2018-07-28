@@ -13,6 +13,11 @@ try:
 except ImportError:
     HAVE_BULLET = False
 
+load_prc_file_data(
+    __file__,
+    'interpolate-frames #t\n'
+)
+
 
 class Converter():
     _COMPONENT_TYPE_MAP = {
