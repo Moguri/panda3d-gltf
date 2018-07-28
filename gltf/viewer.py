@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,11 @@ class App(ShowBase):
         self.accept('escape', sys.exit)
         self.accept('q', sys.exit)
 
-        self.render.set_shader_auto(True)
+        viewer_dir = os.path.dirname(__file__)
+        vertfname = os.path.join(viewer_dir, 'simplepbr.vert')
+        fragfname = os.path.join(viewer_dir, 'simplepbr.frag')
+        pbrshader = p3d.Shader.load(p3d.Shader.SL_GLSL, vertex=vertfname, fragment=fragfname)
+        self.render.set_shader(pbrshader)
 
         self.light = self.render.attach_new_node(p3d.PointLight('light'))
         self.light.set_pos(-5, 5, 5)
