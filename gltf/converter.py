@@ -669,14 +669,6 @@ class Converter():
                     buffview.get('byteStride', 1)
                 ))
 
-        if is_skinned:
-            aspec = GeomVertexAnimationSpec()
-            aspec.set_panda()
-            vformat.set_animation(aspec)
-            varray = GeomVertexArrayFormat()
-            varray.add_column(InternalName.get_transform_blend(), 1, GeomEnums.NT_uint16, GeomEnums.C_index)
-            vformat.add_array(varray)
-
         # Copy data from buffers
         reg_format = GeomVertexFormat.register_format(vformat)
         vdata = GeomVertexData(geom_node.name, reg_format, GeomEnums.UH_stream)
@@ -690,6 +682,40 @@ class Converter():
             end = start + data_info[2] * data_info[3]
             handle.copy_data_from(buff[start:end])
             handle = None
+
+        # Repack mesh data
+        vformat = GeomVertexFormat()
+        varray_vert = GeomVertexArrayFormat()
+        varray_skin = GeomVertexArrayFormat()
+
+        skip_columns = (
+            InternalName.get_transform_index(),
+            InternalName.get_transform_weight(),
+            InternalName.get_transform_blend()
+        )
+        for arr in reg_format.get_arrays():
+            for column in arr.get_columns():
+                varray = varray_skin if column.get_name() in skip_columns else varray_vert
+                varray.add_column(
+                    column.get_name(),
+                    column.get_num_components(),
+                    column.get_numeric_type(),
+                    column.get_contents()
+                )
+        vformat.add_array(varray_vert)
+
+        if is_skinned:
+            aspec = GeomVertexAnimationSpec()
+            aspec.set_panda()
+            vformat.set_animation(aspec)
+            varray_blends = GeomVertexArrayFormat()
+            varray_blends.add_column(InternalName.get_transform_blend(), 1, GeomEnums.NT_uint16, GeomEnums.C_index)
+
+            vformat.add_array(varray_blends)
+            vformat.add_array(varray_skin)
+        print(reg_format, vformat)
+        reg_format = GeomVertexFormat.register_format(vformat)
+        vdata = vdata.convert_to(reg_format)
 
         # Construct primitive
         primitiveid = geom_node.get_num_geoms()
