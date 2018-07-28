@@ -904,7 +904,10 @@ def main():
     dstfname = Filename.fromOsSpecific(outfile)
     get_model_path().prepend_directory(dstfname.getDirname())
 
-    converter = Converter(indir=infile.get_dirname(), outdir=dstfname.get_dirname())
+    indir = Filename(Filename.from_os_specific(infile).get_dirname())
+    outdir = Filename(dstfname.get_dirname())
+
+    converter = Converter(indir=indir, outdir=outdir)
     converter.update(gltf_data, writing_bam=True)
 
     #converter.active_scene.ls()
