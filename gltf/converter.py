@@ -833,7 +833,7 @@ class Converter():
             gvd.set_transform_blend_table(tbtable)
 
     def load_camera(self, camid, gltf_camera):
-        camname = gltf_node.get('name', 'cam'+str(camid))
+        camname = gltf_camera.get('name', 'cam'+str(camid))
         node = self.cameras.get(camid, Camera(camname))
 
         if gltf_camera['type'] == 'perspective':
