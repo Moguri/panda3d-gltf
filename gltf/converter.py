@@ -53,7 +53,8 @@ class Converter():
         6: GeomTrifans,
     }
 
-    def __init__(self, outdir=Filename.from_os_specific(os.getcwd())):
+    def __init__(self, indir=Filename.from_os_specific(os.getcwd()), outdir=Filename.from_os_specific(os.getcwd())):
+        self.indir = indir
         self.outdir = outdir
         self.cameras = {}
         self.buffers = {}
@@ -313,6 +314,10 @@ class Converter():
         if uri.startswith('data:application/octet-stream;base64'):
             buff_data = gltf_buffer['uri'].split(',')[1]
             buff_data = base64.b64decode(buff_data)
+        elif uri.endswith('.bin'):
+            buff_fname = os.path.join(self.indir.to_os_specific(), uri)
+            with open(buff_fname, 'rb') as buff_file:
+                buff_data = buff_file.read()
         else:
             print(
                 "Buffer {} has an unsupported uri ({}), using a zero filled buffer instead"
@@ -898,7 +903,7 @@ def main():
     dstfname = Filename.fromOsSpecific(outfile)
     get_model_path().prepend_directory(dstfname.getDirname())
 
-    converter = Converter(outdir=dstfname.get_dirname())
+    converter = Converter(indir=infile.get_dirname(), outdir=dstfname.get_dirname())
     converter.update(gltf_data, writing_bam=True)
 
     #converter.active_scene.ls()
