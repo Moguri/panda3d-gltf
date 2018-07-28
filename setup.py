@@ -32,5 +32,8 @@ setup(
         'console_scripts': [
             'gltf2bam=gltf.converter:main'
         ],
+        'gui_scripts': [
+            'gltf-viewer=gltf.viewer'
+        ],
     },
 )
