@@ -450,8 +450,7 @@ class Converter():
             struct.unpack_from('<f', self.buffers[time_bv['buffer']], idx)[0]
             for idx in range(start, end, 4)
         ]
-        avg_time = sum(time_data) / len(time_data)
-        fps = 1 / avg_time
+        fps = 1 / time_data[-1]
         num_frames = time_acc['count']
 
         bundle_name = anim_name
