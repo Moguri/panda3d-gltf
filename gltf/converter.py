@@ -274,7 +274,7 @@ class Converter():
 
 
         # Set the active scene
-        sceneid = gltf_data.get('scene', None)
+        sceneid = gltf_data.get('scene', 0)
         if sceneid in self.scenes:
             self.active_scene = self.scenes[sceneid]
         if 'scenes' in gltf_data:
