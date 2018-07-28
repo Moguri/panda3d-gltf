@@ -102,7 +102,7 @@ class Converter():
             self.load_skin(skinid, gltf_skin, gltf_data)
 
         for meshid, gltf_mesh in enumerate(gltf_data.get('meshes', [])):
-            self.load_mesh_new(meshid, gltf_mesh, gltf_data)
+            self.load_mesh(meshid, gltf_mesh, gltf_data)
 
         for nodeid, gltf_node in enumerate(gltf_data.get('nodes', [])):
             node_name = gltf_node.get('name', 'node'+str(nodeid))
@@ -784,7 +784,7 @@ class Converter():
         geom.add_primitive(prim)
         geom_node.add_geom(geom, mat)
 
-    def load_mesh_new(self, meshid, gltf_mesh, gltf_data):
+    def load_mesh(self, meshid, gltf_mesh, gltf_data):
         mesh_name = gltf_mesh.get('name', 'mesh'+str(meshid))
         node = self.meshes.get(meshid, GeomNode(mesh_name))
 
