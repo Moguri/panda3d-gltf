@@ -1,6 +1,7 @@
 import base64
 import collections
 import itertools
+import os
 import math
 import struct
 import pprint # pylint: disable=unused-import
@@ -52,7 +53,8 @@ class Converter():
         6: GeomTrifans,
     }
 
-    def __init__(self):
+    def __init__(self, outdir=Filename.from_os_specific(os.getcwd())):
+        self.outdir = outdir
         self.cameras = {}
         self.buffers = {}
         self.lights = {}
@@ -338,7 +340,16 @@ class Converter():
             return
 
         source = gltf_data['images'][gltf_tex['source']]
-        uri = Filename.fromOsSpecific(source['uri'])
+        uri = source['uri']
+        if uri.startswith('data:image/png;base64'):
+            texname = 'tex{}.png'.format(gltf_tex['source'])
+            texdata = base64.b64decode(uri.split(',')[1])
+            texfname = os.path.join(self.outdir.to_os_specific(), texname)
+            with open(texfname, 'wb') as texfile:
+                texfile.write(texdata)
+            uri = texfname
+        else:
+            uri = Filename.fromOsSpecific(uri)
         texture = TexturePool.load_texture(uri, 0, False, LoaderOptions())
         use_srgb = False
         if 'format' in gltf_tex and gltf_tex['format'] in (0x8C40, 0x8C42):
@@ -887,7 +898,7 @@ def main():
     dstfname = Filename.fromOsSpecific(outfile)
     get_model_path().prepend_directory(dstfname.getDirname())
 
-    converter = Converter()
+    converter = Converter(outdir=dstfname.get_dirname())
     converter.update(gltf_data, writing_bam=True)
 
     #converter.active_scene.ls()
