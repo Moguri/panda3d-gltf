@@ -767,6 +767,15 @@ class Converter():
             handle.copy_data_from(buff[start:end])
             handle = None
 
+        # Flip UVs
+        num_uvs = len({i for i in gltf_primitive['attributes'] if i.startswith('TEXCOORD')})
+        for i in range(num_uvs):
+            uv_data = GeomVertexRewriter(vdata, InternalName.get_texcoord_name(str(i)))
+
+            while not uv_data.is_at_end():
+                uvs = uv_data.get_data2f()
+                uv_data.set_data2f(uvs[0], 1 - uvs[1])
+
         # Repack mesh data
         vformat = GeomVertexFormat()
         varray_vert = GeomVertexArrayFormat()
