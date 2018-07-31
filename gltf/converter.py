@@ -480,8 +480,9 @@ class Converter():
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
         state = state.set_attrib(MaterialAttrib.make(pmat))
-        tex_attrib = TextureAttrib.make()
 
+        # Setup textures
+        tex_attrib = TextureAttrib.make()
         for i, texinfo in enumerate(texinfos):
             texdata = self.textures.get(texinfo['index'], None)
             if texdata is None:
@@ -493,6 +494,21 @@ class Converter():
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
         state = state.set_attrib(tex_attrib)
+
+        # Setup Alpha mode
+        alpha_mode = gltf_mat.get('alphaMode', 'OPAQUE')
+        if alpha_mode == 'MASK':
+            alpha_cutoff = gltf_mat.get('alphaCutoff', 0.5)
+            alpha_attrib = AlphaTestAttrib.make(AlphaTestAttrib.M_greater_equal, alpha_cutoff)
+            state = state.set_attrib(alpha_attrib)
+        elif alpha_mode == 'BLEND':
+            transp_attrib = TransparencyAttrib.make(TransparencyAttrib.M_alpha)
+            state = state.set_attrib(transp_attrib)
+        elif alpha_mode != 'OPAQUE':
+            print(
+                "Warning: material {} has an unsupported alphaMode: {}"
+                .format(matid, alpha_mode)
+            )
 
         # Remove stale meshes
         self.mat_mesh_map[matid] = [
