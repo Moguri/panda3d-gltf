@@ -483,7 +483,6 @@ class Converter():
         tex_attrib = TextureAttrib.make()
 
         for i, texinfo in enumerate(texinfos):
-            print(i, texinfo)
             texdata = self.textures.get(texinfo['index'], None)
             if texdata is None:
                 print("Could not find texture for key: {}".format(tex))
