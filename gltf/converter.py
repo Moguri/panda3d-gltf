@@ -699,7 +699,7 @@ class Converter():
 
         for buffview, accs in itertools.groupby(accessors, key=lambda x: x['bufferView']):
             buffview = gltf_data['bufferViews'][buffview]
-            accs = sorted(accs, key=lambda x: x['byteOffset'])
+            accs = sorted(accs, key=lambda x: x.get('byteOffset', 0))
             is_interleaved = len(accs) > 1 and accs[1]['byteOffset'] < buffview['byteStride']
 
             varray = GeomVertexArrayFormat()
@@ -724,7 +724,7 @@ class Converter():
                     varray = GeomVertexArrayFormat()
                     data_copies.append((
                         buffview['buffer'],
-                        acc['byteOffset'] + buffview['byteOffset'],
+                        acc.get('byteOffset', 0) + buffview['byteOffset'],
                         acc['count'],
                         buffview.get('byteStride', 4 * num_components)
                     ))
