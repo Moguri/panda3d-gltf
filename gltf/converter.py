@@ -756,7 +756,7 @@ class Converter():
                     varray = GeomVertexArrayFormat()
                     data_copies.append((
                         buffview['buffer'],
-                        acc.get('byteOffset', 0) + buffview['byteOffset'],
+                        acc.get('byteOffset', 0) + buffview.get('byteOffset', 0),
                         acc['count'],
                         buffview.get('byteStride', 4 * num_components)
                     ))
