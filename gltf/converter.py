@@ -74,6 +74,10 @@ class Converter():
         self.characters = {}
         self.joint_map = {}
 
+        # Coordinate system transform matrix
+        self.csxform = LMatrix4.convert_mat(CS_yup_right, CS_default)
+        self.csxform_inv = LMatrix4.convert_mat(CS_default, CS_yup_right)
+
         self._joint_nodes = set()
 
         # Scene props
@@ -273,10 +277,22 @@ class Converter():
             if nodeid not in self.node_paths:
                 continue
             np = self.node_paths[nodeid]
-            np.set_pos(*gltf_node.get('translation', [0, 0, 0]))
-            np.set_hpr(self.load_quaternion_as_hpr(gltf_node.get('rotation', [0, 0, 0, 1])))
-            np.set_scale(*gltf_node.get('scale', [1, 1, 1]))
 
+            gltf_pos = LVector3(*gltf_node.get('translation', [0, 0, 0]))
+            gltf_rot = self.load_quaternion_as_hpr(gltf_node.get('rotation', [0, 0, 0, 1]))
+            gltf_scale = LVector3(*gltf_node.get('scale', [1, 1, 1]))
+
+            gltf_mat = LMatrix4()
+            compose_matrix(gltf_mat, gltf_scale, gltf_rot, gltf_pos, CS_yup_right)
+            if np.has_parent():
+                parent_mat = np.get_parent().get_mat()
+            else:
+                parent_mat = LMatrix4.ident_mat()
+            parent_inv = LMatrix4(parent_mat)
+            parent_inv.invert_in_place()
+            np.set_mat(gltf_mat * parent_inv * self.csxform)
+            # Switch to this line when mesh axis-transform works
+            #np.set_mat(self.csxform * gltf_mat * self.csxform_inv)
 
         # Set the active scene
         sceneid = gltf_data.get('scene', 0)
@@ -861,6 +877,7 @@ class Converter():
         #print(ss.data.decode('utf8'))
         geom = Geom(vdata)
         geom.add_primitive(prim)
+        #geom.transform_vertices(self.csxform)
         geom_node.add_geom(geom, mat)
 
     def load_mesh(self, meshid, gltf_mesh, gltf_data):
