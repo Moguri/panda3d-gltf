@@ -21,7 +21,7 @@ class App(ShowBase):
 
         super().__init__()
 
-        infile = p3d.Filename.from_os_specific(sys.argv[1])
+        infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
 
         if infile.get_extension() == 'gltf':
             with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
