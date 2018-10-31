@@ -452,20 +452,6 @@ class Converter():
         pbr_fallback = {'index': '__bp-pbr-fallback', 'texcoord': 0}
         texinfos = []
 
-        if 'pbrMetallicRoughness' in gltf_mat:
-            pbrsettings = gltf_mat['pbrMetallicRoughness']
-
-            pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-            texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
-            if texinfos[-1]['index'] in self.textures:
-                self.make_texture_srgb(self.textures[texinfos[-1]['index']])
-
-            pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
-            texinfos.append(pbrsettings.get('metallicTexture', pbr_fallback))
-
-            pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
-            texinfos.append(pbrsettings.get('roughnessTexture', pbr_fallback))
-
         if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
             matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
             pmat.set_shininess(matsettings['shininessFactor'])
@@ -494,6 +480,20 @@ class Converter():
                     self.make_texture_srgb(self.textures[texture])
             else:
                 pmat.set_specular(LColor(*matsettings['specularFactor']))
+        elif 'pbrMetallicRoughness' in gltf_mat:
+            pbrsettings = gltf_mat['pbrMetallicRoughness']
+
+            pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
+            texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+            if texinfos[-1]['index'] in self.textures:
+                self.make_texture_srgb(self.textures[texinfos[-1]['index']])
+
+            pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
+            texinfos.append(pbrsettings.get('metallicTexture', pbr_fallback))
+
+            pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
+            texinfos.append(pbrsettings.get('roughnessTexture', pbr_fallback))
+
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
         state = state.set_attrib(MaterialAttrib.make(pmat))
