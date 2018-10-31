@@ -163,8 +163,8 @@ class Converter():
                 cam = self.cameras[camid]
                 np.attach_new_node(cam)
             if 'extensions' in gltf_node:
-                if 'KHR_materials_common' in gltf_node['extensions']:
-                    lightid = gltf_node['extensions']['KHR_materials_common']['light']
+                if 'KHR_lights' in gltf_node['extensions']:
+                    lightid = gltf_node['extensions']['KHR_lights']['light']
                     light = self.lights[lightid]
                     if copy_lights:
                         light = light.make_copy()
