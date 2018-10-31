@@ -944,7 +944,7 @@ class Converter():
 
     def load_light(self, lightid, gltf_light):
         node = self.lights.get(lightid, None)
-        lightname = gltf_node.get('name', 'light'+str(lightid))
+        lightname = gltf_light.get('name', 'light'+str(lightid))
 
         ltype = gltf_light['type']
         # Construct a new light if needed
