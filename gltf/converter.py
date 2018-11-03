@@ -88,6 +88,10 @@ class Converter():
     def update(self, gltf_data, writing_bam=False):
         #pprint.pprint(gltf_data)
 
+        if 'extensionsUsed' in gltf_data and 'BP_zup' in gltf_data['extensionsUsed']:
+            self.csxform = LMatrix4.ident_mat()
+            self.csxform_inv = LMatrix4.ident_mat()
+
         # Convert data
         for buffid, gltf_buffer in enumerate(gltf_data.get('buffers', [])):
             self.load_buffer(buffid, gltf_buffer)
