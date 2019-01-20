@@ -493,10 +493,8 @@ class Converter():
                 self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
             pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
-            texinfos.append(pbrsettings.get('metallicTexture', pbr_fallback))
-
             pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
-            texinfos.append(pbrsettings.get('roughnessTexture', pbr_fallback))
+            texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
 
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
