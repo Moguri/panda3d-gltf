@@ -58,4 +58,8 @@ class App(ShowBase):
             self.model_root.reparent_to(self.render)
             self.cam.look_at(self.model_root)
 
-App().run()
+def main():
+    App().run()
+
+if __name__ == '__main__':
+    main()
