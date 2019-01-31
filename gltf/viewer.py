@@ -1,11 +1,11 @@
 import os
-import subprocess
 import sys
-import tempfile
 
 from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
 import panda3d.core as p3d
+
+import gltf
 
 p3d.load_prc_file_data(
     __file__,
@@ -21,18 +21,12 @@ class App(ShowBase):
 
         super().__init__()
 
-        infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
+        gltf.patch_loader(self.loader)
 
-        if infile.get_extension() == 'gltf':
-            with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
-                try:
-                    subprocess.check_call(['gltf2bam', infile, bamfile.name])
-                except subprocess.CalledProcessError:
-                    print("Failed to convert glTF file, exiting")
-                    sys.exit(1)
-                self.model_root = self.loader.load_model(bamfile.name)
-        else:
-            self.model_root = self.loader.load_model(infile)
+        infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
+        p3d.get_model_path().prepend_directory(infile.get_dirname())
+
+        self.model_root = self.loader.load_model(infile)
 
         self.accept('escape', sys.exit)
         self.accept('q', sys.exit)

@@ -982,6 +982,21 @@ class Converter():
         self.lights[lightid] = node
 
 
+def load_model(loader, file_path, **loader_kwargs):
+    '''Load a glTF file from file_path and return a ModelRoot'''
+    import tempfile
+    import subprocess
+
+    with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
+        try:
+            subprocess.check_call(['gltf2bam', file_path, bamfile.name])
+        except subprocess.CalledProcessError:
+            raise RuntimeError("Failed to convert glTF file")
+        model_root = loader.load_model(bamfile.name, **loader_kwargs)
+
+    return model_root
+
+
 def main():
     import sys
     import json
@@ -1000,10 +1015,12 @@ def main():
         gltf_data = json.load(gltf_file)
 
     dstfname = Filename.fromOsSpecific(outfile)
-    get_model_path().prepend_directory(dstfname.getDirname())
 
     indir = Filename(Filename.from_os_specific(infile).get_dirname())
     outdir = Filename(dstfname.get_dirname())
+
+    get_model_path().prepend_directory(indir)
+    get_model_path().prepend_directory(outdir)
 
     converter = Converter(indir=indir, outdir=outdir)
     converter.update(gltf_data, writing_bam=True)
