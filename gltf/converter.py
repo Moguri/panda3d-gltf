@@ -460,7 +460,6 @@ class Converter():
             matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
             pmat.set_shininess(matsettings['shininessFactor'])
             pmat.set_ambient(LColor(*matsettings['ambientFactor']))
-            pprint.pprint(matsettings)
 
             if 'diffuseTexture' in matsettings:
                 texinfo = matsettings['diffuseTexture']
