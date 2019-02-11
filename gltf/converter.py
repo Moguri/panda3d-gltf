@@ -453,35 +453,36 @@ class Converter():
             self.mat_mesh_map[matid] = []
 
         pmat = Material(matname)
-        pbr_fallback = {'index': '__bp-pbr-fallback', 'texcoord': 0}
+        pbr_fallback = {'index': '__bp-pbr-fallback', 'texCoord': 0}
         texinfos = []
 
         if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
             matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
             pmat.set_shininess(matsettings['shininessFactor'])
             pmat.set_ambient(LColor(*matsettings['ambientFactor']))
+            pprint.pprint(matsettings)
 
             if 'diffuseTexture' in matsettings:
                 texinfo = matsettings['diffuseTexture']
                 texinfos.append(texinfo)
                 if matsettings['diffuseTextureSrgb'] and texinfo['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texture])
+                    self.make_texture_srgb(self.textures[texinfo['index']])
             else:
                 pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
 
             if 'emissionTexture' in matsettings:
                 texinfo = matsettings['emissionTexture']
-                texinfos.append(texture)
+                texinfos.append(texinfo)
                 if matsettings['emissionTextureSrgb'] and texinfo['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texture])
+                    self.make_texture_srgb(self.textures[texinfo['index']])
             else:
                 pmat.set_emission(LColor(*matsettings['emissionFactor']))
 
             if 'specularTexture' in matsettings:
                 texinfo = matsettings['specularTexture']
-                texinfos.append(texture)
+                texinfos.append(texinfo)
                 if matsettings['specularTextureSrgb'] and texinfo['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texture])
+                    self.make_texture_srgb(self.textures[texinfo['index']])
             else:
                 pmat.set_specular(LColor(*matsettings['specularFactor']))
         elif 'pbrMetallicRoughness' in gltf_mat:
@@ -505,11 +506,11 @@ class Converter():
         for i, texinfo in enumerate(texinfos):
             texdata = self.textures.get(texinfo['index'], None)
             if texdata is None:
-                print("Could not find texture for key: {}".format(tex))
+                print("Could not find texture for key: {}".format(texinfo['index']))
                 continue
 
             texstage = TextureStage(str(i))
-            texstage.set_texcoord_name(InternalName.get_texcoord_name(str(texinfo.get('texcoord', 0))))
+            texstage.set_texcoord_name(InternalName.get_texcoord_name(str(texinfo.get('texCoord', 0))))
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
         state = state.set_attrib(tex_attrib)
