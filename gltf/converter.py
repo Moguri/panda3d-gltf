@@ -1015,16 +1015,14 @@ class Converter():
         else:
             print("Could not create collision shape for object ({})".format(nodeid))
 
-    def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, gltf_rigidbody):
-        shape = None
-
+    def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, _gltf_rigidbody):
         phynode = CollisionNode(node_name)
 
         if shape_type == 'BOX':
             phynode.add_solid(CollisionBox(Point3(0, 0, 0), *LVector3(*bounding_box) / 2.0))
         elif shape_type == 'SPHERE':
             phynode.add_solid(CollisionSphere(0, 0, 0, radius))
-        elif shape_type in ('CAPSULE','CYLINDER', 'CONE'):
+        elif shape_type in ('CAPSULE', 'CYLINDER', 'CONE'):
             if shape_type != 'CAPSULE':
                 print(
                     'Warning: builtin collisions do not support shape type {} for object {}, falling back to {}'.format(
