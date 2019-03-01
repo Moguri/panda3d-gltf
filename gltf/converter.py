@@ -176,15 +176,15 @@ class Converter():
                     if isinstance(light, Light):
                         root.set_light(lnp)
 
-                if HAVE_BULLET and 'BLENDER_physics' in gltf_node['extensions']:
-                    phy = gltf_node['extensions']['BLENDER_physics']
-                    shape = None
-                    collision_shape = phy['collisionShapes'][0]
+                if 'BLENDER_physics' in gltf_node['extensions']:
+                    gltf_collisions = gltf_node['extensions']['BLENDER_physics']
+                    gltf_rigidbody = gltf_node['extensions']['BLENDER_physics']
+                    collision_shape = gltf_collisions['collisionShapes'][0]
+                    shape_type = collision_shape['shapeType']
                     bounding_box = collision_shape['boundingBox']
                     radius = max(bounding_box[0], bounding_box[1]) / 2.0
                     height = bounding_box[2]
                     geomnode = None
-                    static = 'static' in phy and phy['static']
                     if 'mesh' in collision_shape:
                         try:
                             geomnode = self.meshes[collision_shape['mesh']]
@@ -193,43 +193,39 @@ class Converter():
                                 "Could not find physics mesh ({}) for object ({})"
                                 .format(collision_shape['mesh'], nodeid)
                             )
+                    print(gltf_data['extensions'])
+                    use_bullet = (
+                        'BP_physics_engine' in gltf_data['extensions'] and
+                        gltf_data['extensions']['BP_physics_engine']['engine'] == 'bullet'
+                    )
+                    if use_bullet and not HAVE_BULLET:
+                        print(
+                            'Warning: attempted to export for Bullet, which is unavailable, falling back to builtin'
+                        )
+                        use_bullet = False
 
-                    shape_type = collision_shape['shapeType']
-                    if shape_type == 'BOX':
-                        shape = bullet.BulletBoxShape(LVector3(*bounding_box) / 2.0)
-                    elif shape_type == 'SPHERE':
-                        shape = bullet.BulletSphereShape(max(bounding_box) / 2.0)
-                    elif shape_type == 'CAPSULE':
-                        shape = bullet.BulletCapsuleShape(radius, height - 2.0 * radius, bullet.ZUp)
-                    elif shape_type == 'CYLINDER':
-                        shape = bullet.BulletCylinderShape(radius, height, bullet.ZUp)
-                    elif shape_type == 'CONE':
-                        shape = bullet.BulletConeShape(radius, height, bullet.ZUp)
-                    elif shape_type == 'CONVEX_HULL':
-                        if geomnode:
-                            shape = bullet.BulletConvexHullShape()
-
-                            for geom in geomnode.get_geoms():
-                                shape.add_geom(geom)
-                    elif shape_type == 'MESH':
-                        if geomnode:
-                            mesh = bullet.BulletTriangleMesh()
-                            for geom in geomnode.get_geoms():
-                                mesh.add_geom(geom)
-                            shape = bullet.BulletTriangleMeshShape(mesh, dynamic=not static)
+                    if use_bullet:
+                        phynode = self.load_physics_bullet(
+                            node_name,
+                            geomnode,
+                            shape_type,
+                            bounding_box,
+                            radius,
+                            height,
+                            gltf_rigidbody
+                        )
                     else:
-                        print("Unknown collision shape ({}) for object ({})".format(shape_type, nodeid))
-
-                    if shape is not None:
-                        phynode = bullet.BulletRigidBodyNode(node_name)
-                        phynode.add_shape(shape)
+                        phynode = self.load_physics_builtin(
+                            node_name,
+                            geomnode,
+                            shape_type,
+                            bounding_box,
+                            radius,
+                            height,
+                            gltf_rigidbody
+                        )
+                    if phynode is not None:
                         np.attach_new_node(phynode)
-                        if not static:
-                            phynode.set_mass(phy['mass'])
-                    else:
-                        print("Could not create collision shape for object ({})".format(nodeid))
-                elif not HAVE_BULLET:
-                    print("Bullet is unavailable, not converting collision shape for object ({})".format(nodeid))
             if 'extras' in gltf_node:
                 for key, value in gltf_node['extras'].items():
                     np.set_tag(key, str(value))
@@ -896,14 +892,14 @@ class Converter():
         # Save mesh
         self.meshes[meshid] = node
 
-    def combine_mesh_skin(self, geom_node, skinid):
-        def read_vert_data(gvd, column_name):
-            gvr = GeomVertexReader(gvd, column_name)
-            data = []
-            while not gvr.is_at_end():
-                data.append(LVecBase4(gvr.get_data4()))
-            return data
+    def read_vert_data(self, gvd, column_name):
+        gvr = GeomVertexReader(gvd, column_name)
+        data = []
+        while not gvr.is_at_end():
+            data.append(LVecBase4(gvr.get_data4()))
+        return data
 
+    def combine_mesh_skin(self, geom_node, skinid):
         jvtmap = collections.OrderedDict(sorted(self.joint_map[skinid].items()))
 
         for geom in geom_node.modify_geoms():
@@ -911,8 +907,8 @@ class Converter():
             tbtable = TransformBlendTable()
             tdata = GeomVertexWriter(gvd, InternalName.get_transform_blend())
 
-            jointdata = read_vert_data(gvd, InternalName.get_transform_index())
-            weightdata = read_vert_data(gvd, InternalName.get_transform_weight())
+            jointdata = self.read_vert_data(gvd, InternalName.get_transform_index())
+            weightdata = self.read_vert_data(gvd, InternalName.get_transform_weight())
 
             for joints, weights in zip(jointdata, weightdata):
                 tblend = TransformBlend()
@@ -980,6 +976,92 @@ class Converter():
             node.set_attenuation(att)
 
         self.lights[lightid] = node
+
+    def load_physics_bullet(self, node_name, geomnode, shape_type, bounding_box, radius, height, gltf_rigidbody):
+        shape = None
+        static = 'static' in gltf_rigidbody and gltf_rigidbody['static']
+
+        if shape_type == 'BOX':
+            shape = bullet.BulletBoxShape(LVector3(*bounding_box) / 2.0)
+        elif shape_type == 'SPHERE':
+            shape = bullet.BulletSphereShape(max(bounding_box) / 2.0)
+        elif shape_type == 'CAPSULE':
+            shape = bullet.BulletCapsuleShape(radius, height - 2.0 * radius, bullet.ZUp)
+        elif shape_type == 'CYLINDER':
+            shape = bullet.BulletCylinderShape(radius, height, bullet.ZUp)
+        elif shape_type == 'CONE':
+            shape = bullet.BulletConeShape(radius, height, bullet.ZUp)
+        elif shape_type == 'CONVEX_HULL':
+            if geomnode:
+                shape = bullet.BulletConvexHullShape()
+
+                for geom in geomnode.get_geoms():
+                    shape.add_geom(geom)
+        elif shape_type == 'MESH':
+            if geomnode:
+                mesh = bullet.BulletTriangleMesh()
+                for geom in geomnode.get_geoms():
+                    mesh.add_geom(geom)
+                shape = bullet.BulletTriangleMeshShape(mesh, dynamic=not static)
+        else:
+            print("Unknown collision shape ({}) for object ({})".format(shape_type, nodeid))
+
+        if shape is not None:
+            phynode = bullet.BulletRigidBodyNode(node_name)
+            phynode.add_shape(shape)
+            if not static:
+                phynode.set_mass(gltf_rigidbody['mass'])
+            return phynode
+        else:
+            print("Could not create collision shape for object ({})".format(nodeid))
+
+    def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, gltf_rigidbody):
+        shape = None
+
+        phynode = CollisionNode(node_name)
+
+        if shape_type == 'BOX':
+            phynode.add_solid(CollisionBox(Point3(0, 0, 0), *LVector3(*bounding_box) / 2.0))
+        elif shape_type == 'SPHERE':
+            phynode.add_solid(CollisionSphere(0, 0, 0, radius))
+        elif shape_type in ('CAPSULE','CYLINDER', 'CONE'):
+            if shape_type != 'CAPSULE':
+                print(
+                    'Warning: builtin collisions do not support shape type {} for object {}, falling back to {}'.format(
+                        shape_type,
+                        node_name,
+                        'CAPSULE'
+                    ))
+            phynode.add_solid(CollisionCapsule(0, 0, radius, o, o, height - radius, radius))
+        elif shape_type in ('MESH', 'CONVEX_HULL'):
+            if shape_type != 'MESH':
+                print(
+                    'Warning: builtin collisions do not support shape type {} for object {}, falling back to {}'.format(
+                        shape_type,
+                        node_name,
+                        'MESH'
+                    ))
+            if geomnode:
+                verts = []
+                for geom in geomnode.get_geoms():
+                    vdata = self.read_vert_data(geom.get_vertex_data(), InternalName.get_vertex())
+                    for prim in geom.primitives:
+                        prim_tmp = prim.decompose()
+                        verts += [
+                            vdata[i].get_xyz() for i in
+                            prim_tmp.get_vertex_list()
+                        ]
+
+                polys = zip(*([iter(verts)] * 3))
+                for poly in polys:
+                    phynode.add_solid(CollisionPolygon(*poly))
+        else:
+            print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
+
+        if phynode.solids:
+            return phynode
+        else:
+            print("Could not create collision shape for object ({})".format(nodeid))
 
 
 def load_model(loader, file_path, **loader_kwargs):
