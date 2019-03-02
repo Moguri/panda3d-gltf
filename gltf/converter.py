@@ -21,10 +21,12 @@ load_prc_file_data(
 GltfSettings = collections.namedtuple('GltfSettings', (
     'physics_engine',
     'print_scene',
+    'skip_axis_conversion',
 ))
 GltfSettings.__new__.__defaults__ = (
     'builtin', # physics engine
     False, # print_scene
+    False, # skip_axis_conversion
 )
 
 
@@ -103,7 +105,12 @@ class Converter():
     def update(self, gltf_data, writing_bam=False):
         #pprint.pprint(gltf_data)
 
-        if 'extensionsUsed' in gltf_data and 'BP_zup' in gltf_data['extensionsUsed']:
+        skip_axis_conversion = (
+            'extensionsUsed' in gltf_data and 'BP_zup' in gltf_data['extensionsUsed'] or
+            self.settings.skip_axis_conversion
+        )
+
+        if skip_axis_conversion:
             self.csxform = LMatrix4.ident_mat()
             self.csxform_inv = LMatrix4.ident_mat()
 
