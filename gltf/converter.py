@@ -1094,8 +1094,6 @@ def convert(src, dst, settings=GltfSettings()):
     if not isinstance(dst, Filename):
         dst = Filename.from_os_specific(dst)
 
-    print(src, dst, settings)
-
     with open(src) as gltf_file:
         gltf_data = json.load(gltf_file)
 
