@@ -18,6 +18,15 @@ load_prc_file_data(
     'interpolate-frames #t\n'
 )
 
+GltfSettings = collections.namedtuple('GltfSettings', (
+    'physics_engine',
+    'print_scene',
+))
+GltfSettings.__new__.__defaults__ = (
+    'builtin', # physics engine
+    False, # print_scene
+)
+
 
 class Converter():
     _COMPONENT_TYPE_MAP = {
@@ -58,9 +67,15 @@ class Converter():
         6: GeomTrifans,
     }
 
-    def __init__(self, indir=Filename.from_os_specific(os.getcwd()), outdir=Filename.from_os_specific(os.getcwd())):
+    def __init__(
+            self,
+            indir=Filename.from_os_specific(os.getcwd()),
+            outdir=Filename.from_os_specific(os.getcwd()),
+            settings=GltfSettings()
+    ):
         self.indir = indir
         self.outdir = outdir
+        self.settings = settings
         self.cameras = {}
         self.buffers = {}
         self.lights = {}
@@ -193,11 +208,12 @@ class Converter():
                                 "Could not find physics mesh ({}) for object ({})"
                                 .format(collision_shape['mesh'], nodeid)
                             )
-                    print(gltf_data['extensions'])
-                    use_bullet = (
-                        'BP_physics_engine' in gltf_data['extensions'] and
-                        gltf_data['extensions']['BP_physics_engine']['engine'] == 'bullet'
-                    )
+                    if 'BP_physics_engine' in gltf_data['extensions']:
+                        use_bullet = (
+                            gltf_data['extensions']['BP_physics_engine']['engine'] == 'bullet'
+                        )
+                    else:
+                        use_bullet = self.settings.physics_engine == 'bullet'
                     if use_bullet and not HAVE_BULLET:
                         print(
                             'Warning: attempted to export for Bullet, which is unavailable, falling back to builtin'
@@ -1062,53 +1078,43 @@ class Converter():
             print("Could not create collision shape for object ({})".format(nodeid))
 
 
-def load_model(loader, file_path, **loader_kwargs):
-    '''Load a glTF file from file_path and return a ModelRoot'''
-    import tempfile
-    import subprocess
-
-    with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
-        try:
-            subprocess.check_call(['gltf2bam', file_path, bamfile.name])
-        except subprocess.CalledProcessError:
-            raise RuntimeError("Failed to convert glTF file")
-        model_root = loader.load_model(bamfile.name, **loader_kwargs)
-
-    return model_root
-
-
-def main():
-    import sys
+def convert(src, dst, settings=GltfSettings()):
     import json
 
-    if len(sys.argv) < 2:
-        print("Missing glTF srouce file argument")
-        sys.exit(1)
-    elif len(sys.argv) < 3 and not sys.argv[1].endswith('.gltf'):
-        print("Missing bam destination file argument")
-        sys.exit(1)
+    if not isinstance(src, Filename):
+        src = Filename.from_os_specific(src)
 
-    infile = sys.argv[1]
-    outfile = sys.argv[2] if len(sys.argv) > 2 else infile.replace('.gltf', '.bam')
+    if not isinstance(dst, Filename):
+        dst = Filename.from_os_specific(dst)
 
-    with open(infile) as gltf_file:
+    print(src, dst, settings)
+
+    with open(src) as gltf_file:
         gltf_data = json.load(gltf_file)
 
-    dstfname = Filename.fromOsSpecific(outfile)
 
-    indir = Filename(Filename.from_os_specific(infile).get_dirname())
-    outdir = Filename(dstfname.get_dirname())
+    indir = Filename(src.get_dirname())
+    outdir = Filename(dst.get_dirname())
 
     get_model_path().prepend_directory(indir)
     get_model_path().prepend_directory(outdir)
 
-    converter = Converter(indir=indir, outdir=outdir)
+    converter = Converter(indir=indir, outdir=outdir, settings=settings)
     converter.update(gltf_data, writing_bam=True)
 
-    #converter.active_scene.ls()
+    if settings.print_scene:
+        converter.active_scene.ls()
 
-    converter.active_scene.write_bam_file(dstfname)
+    converter.active_scene.write_bam_file(dst)
 
 
-if __name__ == '__main__':
-    main()
+def load_model(loader, file_path, gltf_settings=GltfSettings(), **loader_kwargs):
+    '''Load a glTF file from file_path and return a ModelRoot'''
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
+        try:
+            convert(file_path, bamfile.name, gltf_settings)
+            return loader.load_model(bamfile.name, **loader_kwargs)
+        except:
+            raise RuntimeError("Failed to convert glTF file")

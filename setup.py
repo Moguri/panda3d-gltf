@@ -30,7 +30,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'gltf2bam=gltf.converter:main'
+            'gltf2bam=gltf.cli:main'
         ],
         'gui_scripts': [
             'gltf-viewer=gltf.viewer:main'
