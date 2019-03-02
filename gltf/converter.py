@@ -1053,7 +1053,10 @@ class Converter():
                         node_name,
                         'CAPSULE'
                     ))
-            phynode.add_solid(CollisionCapsule(0, 0, radius, o, o, height - radius, radius))
+            half_height = height / 2.0 - radius
+            start = LPoint3(0, 0, -half_height)
+            end = LPoint3(0, 0, half_height)
+            phynode.add_solid(CollisionCapsule(start, end, radius))
         elif shape_type in ('MESH', 'CONVEX_HULL'):
             if shape_type != 'MESH':
                 print(
