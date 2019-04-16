@@ -10,6 +10,8 @@ import gltf
 p3d.load_prc_file_data(
     __file__,
     'window-size 1024 768\n'
+    'framebuffer-srgb t\n'
+    'gl-version 3 2\n'
 )
 
 
