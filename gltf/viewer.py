@@ -3,6 +3,7 @@ import sys
 
 from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
+from direct.filter.FilterManager import FilterManager
 import panda3d.core as p3d
 
 import gltf
@@ -10,7 +11,6 @@ import gltf
 p3d.load_prc_file_data(
     __file__,
     'window-size 1024 768\n'
-    'framebuffer-srgb t\n'
     'gl-version 3 2\n'
 )
 
@@ -23,6 +23,8 @@ class App(ShowBase):
 
         super().__init__()
 
+        self.setup_shaders(self.render)
+
         gltf.patch_loader(self.loader)
 
         infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
@@ -33,11 +35,6 @@ class App(ShowBase):
         self.accept('escape', sys.exit)
         self.accept('q', sys.exit)
 
-        viewer_dir = os.path.dirname(__file__)
-        vertfname = os.path.join(viewer_dir, 'simplepbr.vert')
-        fragfname = os.path.join(viewer_dir, 'simplepbr.frag')
-        pbrshader = p3d.Shader.load(p3d.Shader.SL_GLSL, vertex=vertfname, fragment=fragfname)
-        self.render.set_shader(pbrshader)
 
         self.light = self.render.attach_new_node(p3d.PointLight('light'))
         self.light.set_pos(-5, 5, 5)
@@ -53,6 +50,34 @@ class App(ShowBase):
         else:
             self.model_root.reparent_to(self.render)
             self.cam.look_at(self.model_root)
+
+    def setup_shaders(self, render_node):
+        shader_dir = os.path.dirname(__file__)
+
+        # Do not force power-of-two textures
+        p3d.Texture.set_textures_power_2(p3d.ATS_none)
+
+        # PBR shader
+        pbrshader = p3d.Shader.load(
+            p3d.Shader.SL_GLSL,
+            vertex=os.path.join(shader_dir, 'simplepbr.vert'),
+            fragment=os.path.join(shader_dir, 'simplepbr.frag')
+        )
+        render_node.set_shader(pbrshader)
+
+        # Tonemapping
+        manager = FilterManager(base.win, base.cam)
+        tonemap_tex = p3d.Texture()
+        tonemap_tex.set_component_type(p3d.Texture.T_float)
+        tonemap_quad = manager.render_scene_into(colortex=tonemap_tex)
+        tonemap_shader = p3d.Shader.load(
+            p3d.Shader.SL_GLSL,
+            vertex=os.path.join(shader_dir, 'post.vert'),
+            fragment=os.path.join(shader_dir, 'tonemap.frag')
+        )
+        tonemap_quad.set_shader(tonemap_shader)
+        tonemap_quad.set_shader_input('tex', tonemap_tex)
+
 
 def main():
     App().run()
