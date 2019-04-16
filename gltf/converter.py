@@ -94,6 +94,7 @@ class Converter():
         # Coordinate system transform matrix
         self.csxform = LMatrix4.convert_mat(CS_yup_right, CS_default)
         self.csxform_inv = LMatrix4.convert_mat(CS_default, CS_yup_right)
+        self.compose_cs = CS_yup_right
 
         self._joint_nodes = set()
 
@@ -113,6 +114,7 @@ class Converter():
         if skip_axis_conversion:
             self.csxform = LMatrix4.ident_mat()
             self.csxform_inv = LMatrix4.ident_mat()
+            self.compose_cs = CS_zup_right
 
         # Convert data
         for buffid, gltf_buffer in enumerate(gltf_data.get('buffers', [])):
@@ -306,11 +308,12 @@ class Converter():
             gltf_scale = LVector3(*gltf_node.get('scale', [1, 1, 1]))
 
             gltf_mat = LMatrix4()
-            compose_matrix(gltf_mat, gltf_scale, gltf_rot, gltf_pos, CS_yup_right)
+            compose_matrix(gltf_mat, gltf_scale, gltf_rot, gltf_pos, self.compose_cs)
             if np.has_parent():
                 parent_mat = np.get_parent().get_mat()
             else:
                 parent_mat = LMatrix4.ident_mat()
+
             parent_inv = LMatrix4(parent_mat)
             parent_inv.invert_in_place()
             np.set_mat(gltf_mat * parent_inv * self.csxform)
