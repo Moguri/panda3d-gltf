@@ -45,7 +45,9 @@ class App(ShowBase):
         if self.model_root.find('**/+Character'):
             self.actor = Actor(self.model_root)
             self.actor.reparent_to(self.render)
-            self.actor.loop('anim0')
+            anims = self.actor.get_anim_names()
+            if anims:
+                self.actor.loop(anims[0])
             self.cam.look_at(self.actor)
         else:
             self.model_root.reparent_to(self.render)
