@@ -339,19 +339,6 @@ class Converter():
             lmat.set_row(i, LVecBase4(*mat[i * 4: i * 4 + 4]))
         return lmat
 
-    def decompose_matrix(self, mat):
-        mat = LMatrix4(mat)
-        translation = mat.get_row3(3)
-        mat.set_row(3, LVector3(0, 0, 0))
-        scale = [mat.get_row3(i).length() for i in range(3)]
-        for i in range(3):
-            mat.set_row(i, mat.get_row3(i) / scale[i])
-        rot_quat = LQuaternion()
-        rot_quat.set_from_matrix(mat.getUpper3())
-        rotation = rot_quat.get_hpr()
-
-        return translation, rotation, LVector3(*scale)
-
     def load_quaternion_as_hpr(self, quaternion):
         quat = LQuaternion(quaternion[3], quaternion[0], quaternion[1], quaternion[2])
         return quat.get_hpr()
@@ -632,7 +619,10 @@ class Converter():
                 return vals
 
             # Create default animaton data
-            translation, rotation, scale = self.decompose_matrix(joint_mat)
+            translation = LVector3()
+            rotation = LVector3()
+            scale = LVector3()
+            decompose_matrix(joint_mat, scale, rotation, translation, self.compose_cs)
             loc_vals = list(zip(
                 *[(translation.get_x(), translation.get_y(), translation.get_z()) for i in range(num_frames)]
             ))
