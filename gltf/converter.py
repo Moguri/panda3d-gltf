@@ -564,8 +564,8 @@ class Converter():
             struct.unpack_from('<f', self.buffers[time_bv['buffer']], idx)[0]
             for idx in range(start, end, 4)
         ]
-        fps = 1 / time_data[-1]
         num_frames = time_acc['count']
+        fps = num_frames / time_data[-1]
 
         bundle_name = anim_name
         bundle = AnimBundle(bundle_name, fps, num_frames)
