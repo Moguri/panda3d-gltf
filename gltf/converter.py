@@ -316,9 +316,7 @@ class Converter():
 
             parent_inv = LMatrix4(parent_mat)
             parent_inv.invert_in_place()
-            np.set_mat(gltf_mat * parent_inv * self.csxform)
-            # Switch to this line when mesh axis-transform works
-            #np.set_mat(self.csxform * gltf_mat * self.csxform_inv)
+            np.set_mat(self.csxform * gltf_mat * self.csxform_inv)
 
         # Set the active scene
         sceneid = gltf_data.get('scene', 0)
