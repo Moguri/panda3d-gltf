@@ -947,7 +947,11 @@ class Converter():
         if gltf_camera['type'] == 'perspective':
             gltf_lens = gltf_camera['perspective']
             lens = PerspectiveLens()
-            lens.set_fov(math.degrees(gltf_lens['yfov'] * gltf_lens['aspectRatio']), math.degrees(gltf_lens['yfov']))
+            aspect_ratio = gltf_lens.get(
+                'aspectRatio',
+                lens.get_aspect_ratio()
+            )
+            lens.set_fov(math.degrees(gltf_lens['yfov'] * aspect_ratio), math.degrees(gltf_lens['yfov']))
             lens.set_near_far(gltf_lens['znear'], gltf_lens['zfar'])
             lens.set_view_vector((0, 0, -1), (0, 1, 0))
             node.set_lens(lens)
