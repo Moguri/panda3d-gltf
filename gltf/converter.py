@@ -661,7 +661,16 @@ class Converter():
     def load_skin(self, skinid, gltf_skin, gltf_data):
         skinname = gltf_skin.get('name', 'char'+str(skinid))
         #print("Creating character for", skinname)
-        root = gltf_data['nodes'][gltf_skin['skeleton']]
+        if 'skeleton' in gltf_skin:
+            root_nodeid = gltf_skin['skeleton']
+        else:
+            # find a common root node
+            joint_nodes = [gltf_data['nodes'][i] for i in gltf_skin['joints']]
+            child_set = list(itertools.chain(*[node.get('children', []) for node in joint_nodes]))
+            roots = [nodeid for nodeid in gltf_skin['joints'] if nodeid not in child_set]
+            root_nodeid = roots[0]
+
+        root = gltf_data['nodes'][root_nodeid]
 
         character = Character(skinname)
         bundle = character.get_bundle(0)
@@ -710,7 +719,7 @@ class Converter():
                 bone_node = gltf_data['nodes'][child]
                 create_joint(joint, child, bone_node, bind_pose * transform)
 
-        create_joint(skeleton, gltf_skin['skeleton'], root, LMatrix4.ident_mat())
+        create_joint(skeleton, root_nodeid, root, LMatrix4.ident_mat())
 
         self.characters[skinid] = character
         self.joint_map[skinid] = jvtmap
@@ -727,7 +736,7 @@ class Converter():
             #print("Found anims for", skinname)
             for animid, gltf_anim in anims:
                 #print("\t", gltf_anim.get('name', 'anim'+str(animid)))
-                self.create_anim(character, gltf_skin['skeleton'], animid, gltf_anim, gltf_data)
+                self.create_anim(character, root_nodeid, animid, gltf_anim, gltf_data)
 
     def load_primitive(self, geom_node, gltf_primitive, gltf_data):
         # Build Vertex Format
