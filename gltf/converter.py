@@ -921,7 +921,7 @@ class Converter():
         #print(ss.data.decode('utf8'))
         geom = Geom(vdata)
         geom.add_primitive(prim)
-        #geom.transform_vertices(self.csxform)
+        geom.transform_vertices(self.csxform_inv)
         geom_node.add_geom(geom, mat)
 
     def load_mesh(self, meshid, gltf_mesh, gltf_data):
