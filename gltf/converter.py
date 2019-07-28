@@ -362,6 +362,16 @@ class Converter():
             buff_data = bytearray(gltf_buffer['byteLength'])
         self.buffers[buffid] = buff_data
 
+    def get_buffer_view(self, gltf_data, view_id):
+        buffview = gltf_data['bufferViews'][view_id]
+        buff = self.buffers[buffview['buffer']]
+        start = buffview.get('byteOffset', 0)
+        end = start + buffview['byteLength']
+        if 'byteStride' in buffview:
+            return memoryview(buff)[start:end:buffview['byteStride']]
+        else:
+            return memoryview(buff)[start:end]
+
     def make_texture_srgb(self, texture):
         if texture.get_num_components() == 3:
             texture.set_format(Texture.F_srgb)
@@ -381,21 +391,30 @@ class Converter():
             return
 
         source = gltf_data['images'][gltf_tex['source']]
-        uri = source['uri']
-        def write_tex_image(ext):
-            texname = 'tex{}.{}'.format(gltf_tex['source'], ext)
-            texdata = base64.b64decode(uri.split(',')[1])
-            texfname = os.path.join(self.outdir.to_os_specific(), texname)
-            with open(texfname, 'wb') as texfile:
-                texfile.write(texdata)
-            return texfname
-        if uri.startswith('data:image/png;base64'):
-            uri = write_tex_image('png')
-        elif uri.startswith('data:image/jpeg;base64'):
-            uri = write_tex_image('jpeg')
+        if 'uri' in source:
+            uri = source['uri']
+            def write_tex_image(ext):
+                texname = 'tex{}.{}'.format(gltf_tex['source'], ext)
+                texdata = base64.b64decode(uri.split(',')[1])
+                texfname = os.path.join(self.outdir.to_os_specific(), texname)
+                with open(texfname, 'wb') as texfile:
+                    texfile.write(texdata)
+                return texfname
+            if uri.startswith('data:image/png;base64'):
+                uri = write_tex_image('png')
+            elif uri.startswith('data:image/jpeg;base64'):
+                uri = write_tex_image('jpeg')
+            else:
+                uri = Filename.fromOsSpecific(uri)
+            texture = TexturePool.load_texture(uri, 0, False, LoaderOptions())
         else:
-            uri = Filename.fromOsSpecific(uri)
-        texture = TexturePool.load_texture(uri, 0, False, LoaderOptions())
+            view = self.get_buffer_view(gltf_data, source['bufferView'])
+            ext = source['mimeType'].split('/')[1]
+            img_type = PNMFileTypeRegistry.get_global_ptr().get_type_from_extension(ext)
+            img = PNMImage()
+            img.read(StringStream(view), type=img_type)
+            texture = Texture(source.get('name', ''))
+            texture.load(img)
 
         if 'sampler' in gltf_tex:
             gltf_sampler = gltf_data['samplers'][gltf_tex['sampler']]
