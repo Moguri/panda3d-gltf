@@ -47,7 +47,7 @@ class Converter():
         'VEC2': 2,
         'SCALAR': 1,
     }
-    _ATTRIB_CONENT_MAP = {
+    _ATTRIB_CONTENT_MAP = {
         'vertex': GeomEnums.C_point,
         'normal': GeomEnums.C_normal,
         'texcoord': GeomEnums.C_texcoord,
@@ -812,7 +812,7 @@ class Converter():
                     internal_name = InternalName.make(attrib_name)
                 num_components = self._COMPONENT_NUM_MAP[acc['type']]
                 numeric_type = self._COMPONENT_TYPE_MAP[acc['componentType']]
-                content = self._ATTRIB_CONENT_MAP.get(attrib_name, GeomEnums.C_other)
+                content = self._ATTRIB_CONTENT_MAP.get(attrib_name, GeomEnums.C_other)
 
                 # Add this accessor as a column to the current vertex array format
                 varray.add_column(internal_name, num_components, numeric_type, content)
