@@ -303,12 +303,16 @@ class Converter():
                 continue
             np = self.node_paths[nodeid]
 
-            gltf_pos = LVector3(*gltf_node.get('translation', [0, 0, 0]))
-            gltf_rot = self.load_quaternion_as_hpr(gltf_node.get('rotation', [0, 0, 0, 1]))
-            gltf_scale = LVector3(*gltf_node.get('scale', [1, 1, 1]))
+            if 'matrix' in gltf_node:
+                gltf_mat = LMatrix4(*gltf_node.get('matrix'))
+                gltf_mat.transpose_in_place()
+            else:
+                gltf_pos = LVector3(*gltf_node.get('translation', [0, 0, 0]))
+                gltf_rot = self.load_quaternion_as_hpr(gltf_node.get('rotation', [0, 0, 0, 1]))
+                gltf_scale = LVector3(*gltf_node.get('scale', [1, 1, 1]))
 
-            gltf_mat = LMatrix4()
-            compose_matrix(gltf_mat, gltf_scale, gltf_rot, gltf_pos, self.compose_cs)
+                gltf_mat = LMatrix4()
+                compose_matrix(gltf_mat, gltf_scale, gltf_rot, gltf_pos, self.compose_cs)
             if np.has_parent():
                 parent_mat = np.get_parent().get_mat()
             else:
@@ -610,8 +614,9 @@ class Converter():
                 return accessors[0] if accessors else None
 
             def extract_chan_data(path):
-                vals = []
                 acc = get_accessor(path)
+                if not acc:
+                    return None
 
                 buff_view = gltf_data['bufferViews'][acc['bufferView']]
                 buff_data = self.buffers[buff_view['buffer']]
@@ -620,47 +625,65 @@ class Converter():
                 if path == 'rotation':
                     end = start + acc['count'] * 4 * 4
                     data = [struct.unpack_from('<ffff', buff_data, idx) for idx in range(start, end, 4 * 4)]
-                    vals = [
-                        [i[0] for i in data],
-                        [i[1] for i in data],
-                        [i[2] for i in data],
-                        [i[3] for i in data]
-                    ]
-                    #convert quats to hpr
-                    vals = list(zip(*[LQuaternion(i[3], i[0], i[1], i[2]).get_hpr() for i in zip(*vals)]))
                 else:
                     end = start + acc['count'] * 3 * 4
                     data = [struct.unpack_from('<fff', buff_data, idx) for idx in range(start, end, 3 * 4)]
-                    vals = [
-                        [i[0] for i in data],
-                        [i[1] for i in data],
-                        [i[2] for i in data]
-                    ]
 
-                return vals
+                return data
 
             # Create default animaton data
             translation = LVector3()
             rotation = LVector3()
             scale = LVector3()
-            decompose_matrix(joint_mat, scale, rotation, translation, self.compose_cs)
-            loc_vals = list(zip(
-                *[(translation.get_x(), translation.get_y(), translation.get_z()) for i in range(num_frames)]
-            ))
-            rot_vals = list(zip(
-                *[(rotation.get_x(), rotation.get_y(), rotation.get_z()) for i in range(num_frames)]
-            ))
-            scale_vals = list(zip(
-                *[(scale.get_x(), scale.get_y(), scale.get_z()) for i in range(num_frames)]
-            ))
+            decompose_matrix(self.csxform_inv * joint_mat * self.csxform, scale, rotation, translation, CS_yup_right)
 
             # Override defaults with any found animation data
-            if get_accessor('translation') is not None:
-                loc_vals = extract_chan_data('translation')
-            if get_accessor('rotation') is not None:
-                rot_vals = extract_chan_data('rotation')
-            if get_accessor('scale') is not None:
-                scale_vals = extract_chan_data('scale')
+            loc_data = extract_chan_data('translation')
+            rot_data = extract_chan_data('rotation')
+            scale_data = extract_chan_data('scale')
+
+            loc_vals = [[], [], []]
+            rot_vals = [[], [], []]
+            scale_vals = [[], [], []]
+
+            for i in range(num_frames):
+                if scale_data:
+                    frame_scale = scale_data[i]
+                else:
+                    frame_scale = scale
+
+                if rot_data:
+                    quat = rot_data[i]
+                    frame_rotation = LQuaternion(quat[3], quat[0], quat[1], quat[2])
+                else:
+                    frame_rotation = LQuaternion()
+                    frame_rotation.set_hpr(rotation, CS_yup_right)
+
+                if loc_data:
+                    frame_translation = loc_data[i]
+                else:
+                    frame_translation = translation
+
+                mat = LMatrix4(LMatrix4.ident_mat())
+                mat *= LMatrix4.scale_mat(frame_scale)
+                mat = frame_rotation * mat
+                mat *= LMatrix4.translate_mat(frame_translation)
+                mat = self.csxform * mat * self.csxform_inv
+
+                frame_translation = LVector3()
+                frame_scale = LVector3()
+                frame_rotation = LVector3()
+                decompose_matrix(mat, frame_scale, frame_rotation, frame_translation)
+
+                loc_vals[0].append(frame_translation[0])
+                loc_vals[1].append(frame_translation[1])
+                loc_vals[2].append(frame_translation[2])
+                rot_vals[0].append(frame_rotation[0])
+                rot_vals[1].append(frame_rotation[1])
+                rot_vals[2].append(frame_rotation[2])
+                scale_vals[0].append(frame_scale[0])
+                scale_vals[1].append(frame_scale[1])
+                scale_vals[2].append(frame_scale[2])
 
             # Write data to tables
             group.set_table(b'x', CPTAFloat(PTAFloat(loc_vals[0])))
@@ -729,7 +752,7 @@ class Converter():
 
             # glTF uses an absolute bind pose, Panda wants it local
             bind_pose = joint_mat * inv_transform
-            joint = CharacterJoint(character, bundle, parent, node_name, bind_pose)
+            joint = CharacterJoint(character, bundle, parent, node_name, self.csxform * bind_pose * self.csxform_inv)
 
             # Non-deforming bones are not in the skin's jointNames, don't add them to the jvtmap
             if joint_index is not None:
@@ -921,7 +944,7 @@ class Converter():
         #print(ss.data.decode('utf8'))
         geom = Geom(vdata)
         geom.add_primitive(prim)
-        #geom.transform_vertices(self.csxform)
+        geom.transform_vertices(self.csxform_inv)
         geom_node.add_geom(geom, mat)
 
     def load_mesh(self, meshid, gltf_mesh, gltf_data):
