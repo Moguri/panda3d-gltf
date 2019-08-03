@@ -4,6 +4,7 @@ import itertools
 import os
 import math
 import struct
+import tempfile
 import pprint # pylint: disable=unused-import
 
 from panda3d.core import * # pylint: disable=wildcard-import
@@ -1145,8 +1146,11 @@ def read_glb_chunk(glb_file):
     return chunk_type, chunk_data
 
 
-def convert(src, dst, settings=GltfSettings()):
+def convert(src, dst, settings=None):
     import json
+
+    if settings is None:
+        settings = GltfSettings()
 
     if not isinstance(src, Filename):
         src = Filename.from_os_specific(src)
@@ -1196,13 +1200,15 @@ def convert(src, dst, settings=GltfSettings()):
     converter.active_scene.write_bam_file(dst)
 
 
-def load_model(loader, file_path, gltf_settings=GltfSettings(), **loader_kwargs):
+def load_model(loader, file_path, gltf_settings=None, **loader_kwargs):
     '''Load a glTF file from file_path and return a ModelRoot'''
-    import tempfile
 
     with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
         try:
             convert(file_path, bamfile.name, gltf_settings)
-            return loader.load_model(bamfile.name, **loader_kwargs)
+            if hasattr(loader, 'load_sync'):
+                return loader.load_sync(bamfile.name, **loader_kwargs)
+            else:
+                return loader.load_model(bamfile.name, **loader_kwargs)
         except:
             raise RuntimeError("Failed to convert glTF file")

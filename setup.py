@@ -35,5 +35,8 @@ setup(
         'gui_scripts': [
             'gltf-viewer=gltf.viewer:main'
         ],
+        'panda3d.loaders': [
+            'gltf=gltf.loader:GltfLoader'
+        ],
     },
 )
