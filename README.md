@@ -29,7 +29,7 @@ pip install panda3d-gltf
 To grab the latest development build, use:
 
 ```bash
-pip install git+https://github.com/Moguri/panda3d-gltf.git```
+pip install git+https://github.com/Moguri/panda3d-gltf.git
 
 ```
 
