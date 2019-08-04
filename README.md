@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/Moguri/panda3d-gltf.svg?branch=master)](https://travis-ci.org/Moguri/panda3d-gltf)
+[![](https://img.shields.io/pypi/pyversions/panda3d_gltf.svg)](https://pypi.org/project/panda3d_gltf/)
 [![Panda3D Versions](https://img.shields.io/badge/panda3d-1.10-blue.svg)](https://www.panda3d.org/)
 
 # panda3d-gltf
