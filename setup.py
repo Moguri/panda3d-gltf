@@ -6,7 +6,7 @@ def readme():
 
 setup(
     name='panda3d-gltf',
-    version='0.1.0',
+    version='0.1.1',
     description='glTF utilities for Panda3D',
     long_description=readme(),
     long_description_content_type='text/markdown',
