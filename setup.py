@@ -17,6 +17,7 @@ setup(
     ],
     keywords='panda3d gltf',
     packages=['gltf'],
+    include_package_data=True,
     install_requires=[
         'panda3d',
     ],
