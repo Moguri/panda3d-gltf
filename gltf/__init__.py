@@ -17,7 +17,7 @@ def patch_loader(loader, gltf_settings=None):
 
         def new_load_model(self, model_path, **kwargs):
             fname = p3d.Filename(model_path)
-            if fname.get_extension() in 'gltf, glb':
+            if fname.get_extension() in 'gltf', 'glb':
                 return load_model(self, model_path, gltf_settings=gltf_settings, **kwargs)
             else:
                 return _load_model(model_path, **kwargs)
