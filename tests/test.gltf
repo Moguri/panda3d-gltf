@@ -1,0 +1,319 @@
+{
+    "accessors": [
+        {
+            "bufferView": 0,
+            "byteOffset": 0,
+            "componentType": 5126,
+            "count": 24,
+            "max": [
+                1.0000004768371582,
+                1.0000003576278687,
+                1.0
+            ],
+            "min": [
+                -1.0000003576278687,
+                -1.0000005960464478,
+                -1.0
+            ],
+            "name": "accessor_buffer_Cube_POSITION_0",
+            "type": "VEC3"
+        },
+        {
+            "bufferView": 1,
+            "byteOffset": 0,
+            "componentType": 5126,
+            "count": 24,
+            "max": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "min": [
+                -1.0,
+                -1.0,
+                -1.0
+            ],
+            "name": "accessor_buffer_Cube_NORMAL_0",
+            "type": "VEC3"
+        },
+        {
+            "bufferView": 2,
+            "byteOffset": 0,
+            "componentType": 5123,
+            "count": 36,
+            "max": [
+                23
+            ],
+            "min": [
+                0
+            ],
+            "name": "accessor_buffer_Cube_0",
+            "type": "SCALAR"
+        }
+    ],
+    "asset": {
+        "copyright": "",
+        "generator": "blendergltf v1.2.0",
+        "version": "2.0"
+    },
+    "bufferViews": [
+        {
+            "buffer": 0,
+            "byteLength": 288,
+            "byteOffset": 0,
+            "byteStride": 12,
+            "name": "bufferView_buffer_Cube_POSITION_0",
+            "target": 34962
+        },
+        {
+            "buffer": 1,
+            "byteLength": 288,
+            "byteOffset": 0,
+            "byteStride": 12,
+            "name": "bufferView_buffer_Cube_NORMAL_0",
+            "target": 34962
+        },
+        {
+            "buffer": 2,
+            "byteLength": 72,
+            "byteOffset": 0,
+            "name": "bufferView_buffer_Cube_0",
+            "target": 34963
+        }
+    ],
+    "buffers": [
+        {
+            "byteLength": 288,
+            "name": "buffer_Cube_POSITION",
+            "uri": "data:application/octet-stream;base64,AACAP///fz8AAIC/AACAPwAAgL8AAIC/AQCAv/3/f78AAIC/+v9/vwMAgD8AAIC/BACAP/f/fz8AAIA///9/vwAAgD8AAIA/AwCAv/r/f78AAIA/9f9/PwUAgL8AAIA/AACAP///fz8AAIC/BACAP/f/fz8AAIA/9f9/PwUAgL8AAIA/AACAPwAAgL8AAIC/AACAPwAAgL8AAIC/9f9/PwUAgL8AAIA/AwCAv/r/f78AAIA/AQCAv/3/f78AAIC/AQCAv/3/f78AAIC/AwCAv/r/f78AAIA///9/vwAAgD8AAIA/+v9/vwMAgD8AAIC/BACAP/f/fz8AAIA/AACAP///fz8AAIC/+v9/vwMAgD8AAIC///9/vwAAgD8AAIA/"
+        },
+        {
+            "byteLength": 288,
+            "name": "buffer_Cube_NORMAL",
+            "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAMwAAAAAAAIA/AAAAMwAAAAAAAIA/AAAAMwAAAAAAAIA/AAAAMwAAAAAAAIA/AACAPwAAoLTo/z8zAACAPwAAoLTo/z8zAACAPwAAoLTo/z8zAACAPwAAoLTo/z8zAQCYtAAAgL8DAEC0AQCYtAAAgL8DAEC0AQCYtAAAgL8DAEC0AQCYtAAAgL8DAEC0AACAvwAAgDT//w+0AACAvwAAgDT//w+0AACAvwAAgDT//w+0AACAvwAAgDT//w+0AACANAAAgD8BADA0AACANAAAgD8BADA0AACANAAAgD8BADA0AACANAAAgD8BADA0"
+        },
+        {
+            "byteLength": 72,
+            "name": "buffer_Cube",
+            "uri": "data:application/octet-stream;base64,AgADAAAAAgAAAAEABAAFAAYABwAEAAYACwAIAAkACgALAAkADwAMAA0ADgAPAA0AEwAQABEAEgATABEAFQAWABcAFAAVABcA"
+        }
+    ],
+    "cameras": [
+        {
+            "name": "Camera",
+            "perspective": {
+                "aspectRatio": 1.703595982340029,
+                "yfov": 0.5033799409866333,
+                "zfar": 100.0,
+                "znear": 0.10000000149011612
+            },
+            "type": "perspective"
+        }
+    ],
+    "extensions": {
+        "KHR_lights": {
+            "lights": [
+                {
+                    "name": "Lamp",
+                    "point": {
+                        "color": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "constantAttenuation": 1,
+                        "linearAttenuation": 0,
+                        "quadraticAttenuation": 0.03333335240683057
+                    },
+                    "type": "point"
+                }
+            ]
+        }
+    },
+    "extensionsUsed": [
+        "KHR_lights",
+        "BLENDER_physics",
+        "BP_zup",
+        "BP_materials_legacy"
+    ],
+    "materials": [
+        {
+            "alphaMode": "OPAQUE",
+            "doubleSided": false,
+            "emissiveFactor": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "extensions": {
+                "BP_materials_legacy": {
+                    "bpLegacy": {
+                        "ambientFactor": [
+                            1.0,
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "diffuseFactor": [
+                            0.64000004529953,
+                            0.64000004529953,
+                            0.64000004529953,
+                            1.0
+                        ],
+                        "emissionFactor": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "shininessFactor": 50,
+                        "specularFactor": [
+                            0.5,
+                            0.5,
+                            0.5,
+                            1.0
+                        ]
+                    }
+                }
+            },
+            "name": "Material",
+            "pbrMetallicRoughness": {
+                "baseColorFactor": [
+                    0.64000004529953,
+                    0.64000004529953,
+                    0.64000004529953,
+                    1.0
+                ],
+                "metallicFactor": 0.0,
+                "roughnessFactor": 1.0
+            }
+        }
+    ],
+    "meshes": [
+        {
+            "name": "Cube",
+            "primitives": [
+                {
+                    "attributes": {
+                        "NORMAL": 1,
+                        "POSITION": 0
+                    },
+                    "indices": 2,
+                    "material": 0,
+                    "mode": 4
+                }
+            ]
+        }
+    ],
+    "nodes": [
+        {
+            "camera": 0,
+            "name": "Camera",
+            "rotation": [
+                0.483536034822464,
+                0.20870360732078552,
+                0.33687159419059753,
+                0.7804827094078064
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "translation": [
+                7.481131553649902,
+                -6.5076398849487305,
+                5.34366512298584
+            ]
+        },
+        {
+            "extensions": {
+                "BLENDER_physics": {
+                    "collisionGroups": 1,
+                    "collisionMasks": 1,
+                    "collisionShapes": [
+                        {
+                            "boundingBox": [
+                                2.0000009536743164,
+                                2.0000009536743164,
+                                2.0
+                            ],
+                            "mesh": 0,
+                            "primaryAxis": "Z",
+                            "shapeType": "CONVEX_HULL"
+                        }
+                    ],
+                    "mass": 1.0,
+                    "static": false
+                }
+            },
+            "mesh": 0,
+            "name": "Cube",
+            "rotation": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "translation": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "extensions": {
+                "KHR_lights": {
+                    "light": 0
+                }
+            },
+            "name": "Lamp",
+            "rotation": [
+                0.16907575726509094,
+                0.27217137813568115,
+                0.7558802962303162,
+                0.570947527885437
+            ],
+            "scale": [
+                1.0,
+                0.9999999403953552,
+                1.0
+            ],
+            "translation": [
+                4.076245307922363,
+                -3.844186782836914,
+                5.903861999511719
+            ]
+        }
+    ],
+    "scene": 0,
+    "scenes": [
+        {
+            "extensions": {
+                "BLENDER_physics": {
+                    "gravity": -9.8100004196167
+                }
+            },
+            "extras": {
+                "active_camera": 0,
+                "background_color": [
+                    0.05087608844041824,
+                    0.05087608844041824,
+                    0.05087608844041824
+                ],
+                "frames_per_second": 24
+            },
+            "name": "Scene",
+            "nodes": [
+                1,
+                2,
+                0
+            ]
+        }
+    ]
+}
