@@ -17,11 +17,14 @@ def patch_loader(loader, gltf_settings=None):
         _load_model = loader.load_model
 
         def new_load_model(self, model_path, **kwargs):
-            fname = p3d.Filename(model_path)
-            if fname.get_extension() in ('gltf', 'glb'):
-                return load_model(self, model_path, gltf_settings=gltf_settings, **kwargs)
-            else:
-                return _load_model(model_path, **kwargs)
+            if not isinstance(model_path, (tuple, list, set)):
+                model_path = [model_path]
+            for model in model_path:
+                fname = p3d.Filename(model)
+                if fname.get_extension() in ('gltf', 'glb'):
+                    return load_model(self, model, gltf_settings=gltf_settings, **kwargs)
+                else:
+                    return _load_model(model_path, **kwargs)
         loader.load_model = loader.loadModel = types.MethodType(new_load_model, loader)
 
 
