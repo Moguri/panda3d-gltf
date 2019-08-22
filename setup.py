@@ -1,5 +1,9 @@
 from setuptools import setup
 
+__version__ = ''
+#pylint: disable=exec-used
+exec(open('gltf/version.py').read())
+
 setup(
     version='0.1.1',
     keywords='panda3d gltf',
