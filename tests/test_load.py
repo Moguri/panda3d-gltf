@@ -1,8 +1,7 @@
 import os
 
 import panda3d.core as p3d
-import pytest
-
+import pytest #pylint:disable=wrong-import-order
 
 import gltf
 
