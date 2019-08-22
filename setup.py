@@ -5,7 +5,7 @@ __version__ = ''
 exec(open('gltf/version.py').read())
 
 setup(
-    version='0.1.1',
+    version=__version__,
     keywords='panda3d gltf',
     packages=['gltf'],
     install_requires=[
