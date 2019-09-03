@@ -129,6 +129,11 @@ class Converter():
             for lightid, gltf_light in enumerate(lights):
                 self.load_light(lightid, gltf_light)
 
+        if 'extensions' in gltf_data and 'KHR_lights_punctual' in gltf_data['extensions']:
+            lights = gltf_data['extensions']['KHR_lights_punctual'].get('lights', [])
+            for lightid, gltf_light in enumerate(lights):
+                self.load_light(lightid, gltf_light, punctual=True)
+
         for texid, gltf_tex in enumerate(gltf_data.get('textures', [])):
             self.load_texture(texid, gltf_tex, gltf_data)
         self.load_fallback_texture()
@@ -192,8 +197,16 @@ class Converter():
                 cam = self.cameras[camid]
                 np.attach_new_node(cam)
             if 'extensions' in gltf_node:
-                if 'KHR_lights' in gltf_node['extensions']:
-                    lightid = gltf_node['extensions']['KHR_lights']['light']
+                light_ext = None
+                has_light_ext = False
+                if 'KHR_lights_punctual' in gltf_node['extensions']:
+                    light_ext = 'KHR_lights_punctual'
+                    has_light_ext = True
+                elif 'KHR_lights' in gltf_node['extensions']:
+                    light_ext = 'KHR_lights'
+                    has_light_ext = True
+                if has_light_ext:
+                    lightid = gltf_node['extensions'][light_ext]['light']
                     light = self.lights[lightid]
                     if copy_lights:
                         light = light.make_copy()
@@ -1014,7 +1027,7 @@ class Converter():
 
         self.cameras[camid] = node
 
-    def load_light(self, lightid, gltf_light):
+    def load_light(self, lightid, gltf_light, punctual=False):
         node = self.lights.get(lightid, None)
         lightname = gltf_light.get('name', 'light'+str(lightid))
 
@@ -1033,21 +1046,25 @@ class Converter():
                 node = PandaNode(lightname)
 
         # Update the light
-        if ltype == 'unsupported':
-            lightprops = {}
+        if punctual:
+            if 'color' in gltf_light:
+                node.set_color(LColor(*gltf_light['color'], w=1))
         else:
-            lightprops = gltf_light[ltype]
+            if ltype == 'unsupported':
+                lightprops = {}
+            else:
+                lightprops = gltf_light[ltype]
 
-        if ltype in ('point', 'directional', 'spot'):
-            node.set_color(LColor(*lightprops['color'], w=1))
+            if ltype in ('point', 'directional', 'spot'):
+                node.set_color(LColor(*lightprops['color'], w=1))
 
-        if ltype in ('point', 'spot'):
-            att = LPoint3(
-                lightprops['constantAttenuation'],
-                lightprops['linearAttenuation'],
-                lightprops['quadraticAttenuation']
-            )
-            node.set_attenuation(att)
+            if ltype in ('point', 'spot'):
+                att = LPoint3(
+                    lightprops['constantAttenuation'],
+                    lightprops['linearAttenuation'],
+                    lightprops['quadraticAttenuation']
+                )
+                node.set_attenuation(att)
 
         self.lights[lightid] = node
 
