@@ -30,7 +30,7 @@ class App(ShowBase):
         infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
         p3d.get_model_path().prepend_directory(infile.get_dirname())
 
-        self.model_root = self.loader.load_model(infile)
+        self.model_root = self.loader.load_model(infile, noCache=True)
 
         self.accept('escape', sys.exit)
         self.accept('q', sys.exit)
