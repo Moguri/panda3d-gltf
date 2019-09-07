@@ -1223,10 +1223,12 @@ def load_model(loader, file_path, gltf_settings=None, **loader_kwargs):
 
     with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
         try:
-            convert(file_path, bamfile.name, gltf_settings)
+            bamfilepath = Filename.from_os_specific(bamfile.name)
+            bamfilepath.make_true_case()
+            convert(file_path, bamfilepath, gltf_settings)
             if hasattr(loader, 'load_sync'):
-                return loader.load_sync(bamfile.name, **loader_kwargs)
+                return loader.load_sync(bamfilepath, **loader_kwargs)
             else:
-                return loader.load_model(bamfile.name, **loader_kwargs)
+                return loader.load_model(bamfilepath, **loader_kwargs)
         except:
             raise RuntimeError("Failed to convert glTF file")
