@@ -13,6 +13,7 @@ try:
     HAVE_BULLET = True
 except ImportError:
     HAVE_BULLET = False
+from direct.stdpy.file import open # pylint: disable=redefined-builtin
 
 load_prc_file_data(
     __file__,
