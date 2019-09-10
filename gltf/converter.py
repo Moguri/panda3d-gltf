@@ -1048,12 +1048,25 @@ class Converter():
 
         # Update the light
         if punctual:
+            coneangle = gltf_light.get('outerConeAngle', math.pi / 4)
+            energy = 1
             # For PBR, attention should always be (1, 0, 1)
             if hasattr(node, 'attenuation'):
                 node.attenuation = LVector3(1, 0, 1)
 
+            if 'intensity' in gltf_light:
+                # convert photometric light value to radiometric and multiply it
+                # against color
+                kv_const = 638
+                intensity = gltf_light['intensity']
+                if ltype == 'point':
+                    energy = intensity * 4 * math.pi / kv_const
+                elif ltype == 'directional':
+                    energy = intensity / kv_const
+                elif ltype == 'spot':
+                    energy = intensity * 4 * math.pi * math.pow(math.sin(coneangle / 2), 2) / kv_const
             if 'color' in gltf_light:
-                node.set_color(LColor(*gltf_light['color'], w=1))
+                node.set_color(LColor(*gltf_light['color'], w=1) * energy)
             if 'range' in gltf_light:
                 node.max_distance = gltf_light['range']
         else:
