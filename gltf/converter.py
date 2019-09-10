@@ -133,7 +133,10 @@ class Converter():
         if 'extensions' in gltf_data and 'KHR_lights_punctual' in gltf_data['extensions']:
             lights = gltf_data['extensions']['KHR_lights_punctual'].get('lights', [])
             for lightid, gltf_light in enumerate(lights):
-                self.load_light(lightid, gltf_light, punctual=True)
+                asset = gltf_data.get('asset', {})
+                generator = asset.get('generator', '')
+                blender_hack = generator.startswith('Khronos glTF Blender I/O')
+                self.load_light(lightid, gltf_light, punctual=True, blender_hack=blender_hack)
 
         for texid, gltf_tex in enumerate(gltf_data.get('textures', [])):
             self.load_texture(texid, gltf_tex, gltf_data)
@@ -1028,7 +1031,7 @@ class Converter():
 
         self.cameras[camid] = node
 
-    def load_light(self, lightid, gltf_light, punctual=False):
+    def load_light(self, lightid, gltf_light, punctual=False, blender_hack=False):
         node = self.lights.get(lightid, None)
         lightname = gltf_light.get('name', 'light'+str(lightid))
 
@@ -1054,7 +1057,11 @@ class Converter():
             if hasattr(node, 'attenuation'):
                 node.attenuation = LVector3(1, 0, 1)
 
-            if 'intensity' in gltf_light:
+            if blender_hack:
+                # Blender exports with radiometric values so don't convert
+                # (see https://github.com/KhronosGroup/glTF-Blender-IO/issues/564)
+                energy = gltf_light.get('intensity')
+            elif 'intensity' in gltf_light:
                 # convert photometric light value to radiometric and multiply it
                 # against color
                 kv_const = 638
