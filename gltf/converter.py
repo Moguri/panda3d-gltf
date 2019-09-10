@@ -1069,6 +1069,9 @@ class Converter():
                 node.set_color(LColor(*gltf_light['color'], w=1) * energy)
             if 'range' in gltf_light:
                 node.max_distance = gltf_light['range']
+            if ltype == 'spot':
+                fov = math.degrees(coneangle) * 2
+                node.get_lens().set_fov(fov, fov)
         else:
             if ltype == 'unsupported':
                 lightprops = {}
