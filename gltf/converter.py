@@ -1048,8 +1048,14 @@ class Converter():
 
         # Update the light
         if punctual:
+            # For PBR, attention should always be (1, 0, 1)
+            if hasattr(node, 'attenuation'):
+                node.attenuation = LVector3(1, 0, 1)
+
             if 'color' in gltf_light:
                 node.set_color(LColor(*gltf_light['color'], w=1))
+            if 'range' in gltf_light:
+                node.max_distance = gltf_light['range']
         else:
             if ltype == 'unsupported':
                 lightprops = {}
