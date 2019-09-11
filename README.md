@@ -14,6 +14,7 @@ If and when Panda3D gets builtin support for glTF, this module will go into main
 * Supports binary glTF
 * Includes support for the following extensions:
   * KHR_lights (deprecated in favor of KHR_lights_punctual)
+  * KHR_lights_punctual
   * BLENDER_physics
 * Ships with a `gltf2bam` cli-tool for converting glTF files to BAM
 * Ships with `gltf-viewer` for viewing files (including glTF) with a simple PBR renderer
