@@ -35,10 +35,10 @@ class App(ShowBase):
         self.accept('escape', sys.exit)
         self.accept('q', sys.exit)
 
-
-        self.light = self.render.attach_new_node(p3d.PointLight('light'))
-        self.light.set_pos(-5, 5, 5)
-        self.render.set_light(self.light)
+        if not self.model_root.find('**/+Light'):
+            self.light = self.render.attach_new_node(p3d.PointLight('light'))
+            self.light.set_pos(-5, 5, 5)
+            self.render.set_light(self.light)
 
         self.cam.set_pos(-10, 10, 10)
 
