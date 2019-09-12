@@ -215,6 +215,8 @@ class Converter():
                     if copy_lights:
                         light = light.make_copy()
                     lnp = np.attach_new_node(light)
+                    if isinstance(light, Spotlight):
+                        lnp.set_p(lnp.get_p() - 90)
                     if isinstance(light, Light):
                         root.set_light(lnp)
 
