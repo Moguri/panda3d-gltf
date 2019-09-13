@@ -1,6 +1,6 @@
 // Based on code from https://github.com/KhronosGroup/glTF-Sample-Viewer
 
-#version 130
+#version 120
 
 #ifndef MAX_LIGHTS
     #define MAX_LIGHTS 8
@@ -46,11 +46,9 @@ const vec3 F0 = vec3(0.04);
 const float MIN_ROUGHNESS = 0.04;
 const float PI = 3.141592653589793;
 
-in vec3 v_position;
-in vec3 v_normal;
-in vec2 v_texcoord;
-
-out vec4 color;
+varying vec3 v_position;
+varying vec3 v_normal;
+varying vec2 v_texcoord;
 
 // Give texture slots names
 #define p3d_TextureBaseColor p3d_Texture0
@@ -83,17 +81,17 @@ vec3 diffuse_function(FunctionParamters func_params) {
 }
 
 void main() {
-    vec4 metal_rough = texture(p3d_TextureMetalRoughness, v_texcoord);
+    vec4 metal_rough = texture2D(p3d_TextureMetalRoughness, v_texcoord);
     float metallic = clamp(p3d_Material.metallic * metal_rough.g, 0.0, 1.0);
     float roughness = clamp(p3d_Material.roughness * metal_rough.b,  MIN_ROUGHNESS, 1.0);
-    vec4 base_color = p3d_Material.baseColor * texture(p3d_TextureBaseColor, v_texcoord);
+    vec4 base_color = p3d_Material.baseColor * texture2D(p3d_TextureBaseColor, v_texcoord);
     vec3 diffuse_color = (base_color.rgb * (vec3(1.0) - F0)) * (1.0 - metallic);
     vec3 spec_color = mix(F0, base_color.rgb, metallic);
     vec3 reflection90 = vec3(clamp(max(max(spec_color.r, spec_color.g), spec_color.b) * 25.0, 0.0, 1.0));
     vec3 n = v_normal;
     vec3 v = normalize(-v_position);
 
-    color = vec4(0.0);
+    vec4 color = vec4(0.0);
 
     for (int i = 0; i < p3d_LightSource.length(); ++i) {
         vec3 l = normalize(p3d_LightSource[i].position.xyz - v_position * p3d_LightSource[i].position.w);
@@ -124,4 +122,6 @@ void main() {
             color.rgb += func_params.n_dot_l * p3d_LightSource[i].diffuse.rgb * (diffuse_contrib + spec_contrib);
         }
     }
+
+    gl_FragColor = color;
 }

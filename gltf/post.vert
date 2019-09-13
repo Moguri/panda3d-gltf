@@ -1,11 +1,11 @@
-#version 130
+#version 120
 
 uniform mat4 p3d_ModelViewProjectionMatrix;
 
-in vec4 p3d_Vertex;
-in vec2 p3d_MultiTexCoord0;
+attribute vec4 p3d_Vertex;
+attribute vec2 p3d_MultiTexCoord0;
 
-out vec2 v_texcoord;
+varying vec2 v_texcoord;
 
 void main() {
     v_texcoord = p3d_MultiTexCoord0;
