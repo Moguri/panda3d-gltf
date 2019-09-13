@@ -133,10 +133,7 @@ class Converter():
         if 'extensions' in gltf_data and 'KHR_lights_punctual' in gltf_data['extensions']:
             lights = gltf_data['extensions']['KHR_lights_punctual'].get('lights', [])
             for lightid, gltf_light in enumerate(lights):
-                asset = gltf_data.get('asset', {})
-                generator = asset.get('generator', '')
-                blender_hack = generator.startswith('Khronos glTF Blender I/O')
-                self.load_light(lightid, gltf_light, punctual=True, blender_hack=blender_hack)
+                self.load_light(lightid, gltf_light, punctual=True)
 
         for texid, gltf_tex in enumerate(gltf_data.get('textures', [])):
             self.load_texture(texid, gltf_tex, gltf_data)
@@ -1033,7 +1030,7 @@ class Converter():
 
         self.cameras[camid] = node
 
-    def load_light(self, lightid, gltf_light, punctual=False, blender_hack=False):
+    def load_light(self, lightid, gltf_light, punctual=False):
         node = self.lights.get(lightid, None)
         lightname = gltf_light.get('name', 'light'+str(lightid))
 
