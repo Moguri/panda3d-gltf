@@ -10,7 +10,7 @@ setup(
     packages=['gltf'],
     install_requires=[
         'panda3d',
-        'panda3d-simplepbr',
+        'panda3d-simplepbr>=0.2.2',
     ],
     setup_requires=[
         'pytest-runner'
