@@ -51,8 +51,6 @@ class App(ShowBase):
         else:
             self.model_root.reparent_to(self.render)
 
-        self.render.ls()
-
 
 def main():
     App().run()
