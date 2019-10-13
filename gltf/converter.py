@@ -374,7 +374,7 @@ class Converter():
         elif uri.endswith('.bin'):
             buff_fname = os.path.join(self.indir.to_os_specific(), uri)
             with open(buff_fname, 'rb') as buff_file:
-                buff_data = buff_file.read()
+                buff_data = buff_file.read(gltf_buffer['byteLength'])
         else:
             print(
                 "Buffer {} has an unsupported uri ({}), using a zero filled buffer instead"
