@@ -405,7 +405,13 @@ class Converter():
         texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgba)
         texture.set_clear_color(LColor(1, 1, 1, 1))
 
-        self.textures['__bp-pbr-fallback'] = texture
+        self.textures['__pbr-fallback'] = texture
+
+        texture = Texture('normal-fallback')
+        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgb)
+        texture.set_clear_color(LColor(0, 0, 1, 1))
+
+        self.textures['__normal-fallback'] = texture
 
     def load_texture(self, texid, gltf_tex, gltf_data):
         if 'source' not in gltf_tex:
@@ -505,7 +511,8 @@ class Converter():
             self.mat_mesh_map[matid] = []
 
         pmat = Material(matname)
-        pbr_fallback = {'index': '__bp-pbr-fallback', 'texCoord': 0}
+        pbr_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
+        normal_fallback = {'index': '__normal-fallback', 'texCoord': 0}
         texinfos = []
 
         if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
@@ -547,6 +554,9 @@ class Converter():
             pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
             pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
             texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
+
+        # Normal map
+        texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
 
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
