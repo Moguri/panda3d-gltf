@@ -40,7 +40,8 @@ class App(ShowBase):
             self.light.set_pos(-5, 5, 5)
             self.render.set_light(self.light)
 
-        self.cam.set_pos(-10, 10, 10)
+        self.cam.set_pos(-6, 6, 6)
+        self.cam.look_at(self.model_root)
 
         if self.model_root.find('**/+Character'):
             self.actor = Actor(self.model_root)
