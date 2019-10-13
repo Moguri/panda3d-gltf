@@ -52,6 +52,7 @@ class Converter():
     _ATTRIB_CONTENT_MAP = {
         'vertex': GeomEnums.C_point,
         'normal': GeomEnums.C_normal,
+        'tangent': GeomEnums.C_other,
         'texcoord': GeomEnums.C_texcoord,
         'color': GeomEnums.C_color,
         'weights': GeomEnums.C_point,
