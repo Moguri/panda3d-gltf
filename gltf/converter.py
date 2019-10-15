@@ -823,6 +823,7 @@ class Converter():
         accessors = sorted(accessors, key=lambda x: x['bufferView'])
         data_copies = []
         is_skinned = 'JOINTS_0' in mesh_attribs
+        calc_tangents = not 'TANGENT' in mesh_attribs
 
         for buffview, accs in itertools.groupby(accessors, key=lambda x: x['bufferView']):
             buffview = gltf_data['bufferViews'][buffview]
@@ -918,6 +919,7 @@ class Converter():
 
             vformat.add_array(varray_blends)
             vformat.add_array(varray_skin)
+
         reg_format = GeomVertexFormat.register_format(vformat)
         vdata = vdata.convert_to(reg_format)
 
@@ -972,8 +974,62 @@ class Converter():
         #print(ss.data.decode('utf8'))
         geom = Geom(vdata)
         geom.add_primitive(prim)
+        if calc_tangents:
+            self.calculate_tangents(geom)
         geom.transform_vertices(self.csxform_inv)
         geom_node.add_geom(geom, mat)
+
+    def calculate_tangents(self, geom):
+        # Adapted from https://www.marti.works/calculating-tangents-for-your-mesh/
+        prim = geom.get_primitive(0)
+        gvd = geom.get_vertex_data()
+        gvd = gvd.replace_column(InternalName.get_tangent(), 4, GeomEnums.NT_float32, GeomEnums.C_other)
+        tangent_writer = GeomVertexWriter(gvd, InternalName.get_tangent())
+
+        primverts = prim.get_vertex_list()
+        tris = [primverts[i:i+3] for i in range(0, len(primverts), 3)]
+        posdata = self.read_vert_data(gvd, InternalName.get_vertex())
+        normaldata = [LVector3(i[0], i[1], i[2]) for i in self.read_vert_data(gvd, InternalName.get_normal())]
+        uvdata = [LVector2(i[0], i[1]) for i in self.read_vert_data(gvd, InternalName.get_texcoord_name('0'))]
+        tana = [LVector3(0, 0, 0) for i in range(len(posdata))]
+        tanb = [LVector3(0, 0, 0) for i in range(len(posdata))]
+
+        # Gather tangent data from triangles
+        for tri in tris:
+            idx0, idx1, idx2 = tri
+            edge1 = posdata[idx1] - posdata[idx0]
+            edge2 = posdata[idx2] - posdata[idx0]
+            duv1 = uvdata[idx1] - uvdata[idx0]
+            duv2 = uvdata[idx2] - uvdata[idx0]
+
+            fconst = 1.0 / (duv1.x * duv2.y - duv2.x * duv1.y)
+            tangent = LVector3(*[
+                fconst * (duv2.y * edge1[i] - duv1.y * edge2[i])
+                for i in range(3)
+            ])
+            bitangent = LVector3(*[
+                fconst * (duv2.x * edge1[i] - duv1.x * edge2[i])
+                for i in range(3)
+            ])
+
+            for idx in tri:
+                tana[idx] += tangent
+                tanb[idx] += bitangent
+
+        # Calculate per-vertex tangent values
+        for normal, tan0, tan1 in zip(normaldata, tana, tanb):
+            tangent = tan0 - (normal * normal.dot(tan0))
+            tangent.normalize()
+
+            tangent4 = LVector4(
+                tangent.x,
+                tangent.y,
+                tangent.z,
+                -1.0 if normal.cross(tan0).dot(tan1) < 0 else 1.0
+            )
+            tangent_writer.set_data4f(tangent4)
+
+        geom.set_vertex_data(gvd)
 
     def load_mesh(self, meshid, gltf_mesh, gltf_data):
         mesh_name = gltf_mesh.get('name', 'mesh'+str(meshid))
