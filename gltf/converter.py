@@ -325,12 +325,20 @@ class Converter():
                 gltf_mat = LMatrix4(*gltf_node.get('matrix'))
                 gltf_mat.transpose_in_place()
             else:
-                gltf_pos = LVector3(*gltf_node.get('translation', [0, 0, 0]))
-                gltf_rot = self.load_quaternion_as_hpr(gltf_node.get('rotation', [0, 0, 0, 1]))
-                gltf_scale = LVector3(*gltf_node.get('scale', [1, 1, 1]))
+                gltf_mat = LMatrix4(LMatrix4.ident_mat())
+                if 'scale' in gltf_node:
+                    gltf_mat.set_scale_mat(tuple(gltf_node['scale']))
 
-                gltf_mat = LMatrix4()
-                compose_matrix(gltf_mat, gltf_scale, gltf_rot, gltf_pos, self.compose_cs)
+                if 'rotation' in gltf_node:
+                    rot_mat = LMatrix4()
+                    rot = gltf_node['rotation']
+                    quat = LQuaternion(rot[3], rot[0], rot[1], rot[2])
+                    quat.extract_to_matrix(rot_mat)
+                    gltf_mat *= rot_mat
+
+                if 'translation' in gltf_node:
+                    gltf_mat *= LMatrix4.translate_mat(*gltf_node['translation'])
+
             if np.has_parent():
                 parent_mat = np.get_parent().get_mat()
             else:
