@@ -28,8 +28,8 @@ def patch_loader(loader, gltf_settings=None):
         loader.load_model = loader.loadModel = types.MethodType(new_load_model, loader)
     else:
         # Ensure that our loader is the preferred choice for .gltf files.
-        type = registry.get_type_from_extension("gltf")
-        if not type or type.type.name != 'PythonLoaderFileType':
+        ftype = registry.get_type_from_extension("gltf")
+        if not ftype or ftype.type.name != 'PythonLoaderFileType':
             registry.register_type(GltfLoader)
 
 
