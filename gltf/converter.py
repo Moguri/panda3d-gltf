@@ -994,6 +994,10 @@ class Converter():
         tana = [LVector3(0, 0, 0) for i in range(len(posdata))]
         tanb = [LVector3(0, 0, 0) for i in range(len(posdata))]
 
+        if not uvdata:
+            # No point generating tangents without UVs.
+            return
+
         # Gather tangent data from triangles
         for tri in tris:
             idx0, idx1, idx2 = tri
@@ -1002,15 +1006,14 @@ class Converter():
             duv1 = uvdata[idx1] - uvdata[idx0]
             duv2 = uvdata[idx2] - uvdata[idx0]
 
-            fconst = 1.0 / (duv1.x * duv2.y - duv2.x * duv1.y)
-            tangent = LVector3(*[
-                fconst * (duv2.y * edge1[i] - duv1.y * edge2[i])
-                for i in range(3)
-            ])
-            bitangent = LVector3(*[
-                fconst * (duv2.x * edge1[i] - duv1.x * edge2[i])
-                for i in range(3)
-            ])
+            denom = duv1.x * duv2.y - duv2.x * duv1.y
+            if denom != 0.0:
+                fconst = 1.0 / denom
+                tangent = (edge1.xyz * duv2.y - edge2.xyz * duv1.y) * fconst
+                bitangent = (edge1.xyz * duv2.x - edge2.xyz * duv1.x) * fconst
+            else:
+                tangent = LVector3(0)
+                bitangent = LVector3(0)
 
             for idx in tri:
                 tana[idx] += tangent
