@@ -367,10 +367,6 @@ class Converter():
             lmat.set_row(i, LVecBase4(*mat[i * 4: i * 4 + 4]))
         return lmat
 
-    def load_quaternion_as_hpr(self, quaternion):
-        quat = LQuaternion(quaternion[3], quaternion[0], quaternion[1], quaternion[2])
-        return quat.get_hpr()
-
     def load_buffer(self, buffid, gltf_buffer):
         if 'uri' not in gltf_buffer:
             assert self.buffers[buffid]
