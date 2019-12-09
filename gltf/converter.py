@@ -323,7 +323,6 @@ class Converter():
 
             if 'matrix' in gltf_node:
                 gltf_mat = LMatrix4(*gltf_node.get('matrix'))
-                gltf_mat.transpose_in_place()
             else:
                 gltf_mat = LMatrix4(LMatrix4.ident_mat())
                 if 'scale' in gltf_node:
@@ -346,7 +345,7 @@ class Converter():
 
             parent_inv = LMatrix4(parent_mat)
             parent_inv.invert_in_place()
-            np.set_mat(self.csxform * gltf_mat * self.csxform_inv)
+            np.set_mat(self.csxform_inv * gltf_mat * self.csxform)
 
         # Set the active scene
         sceneid = gltf_data.get('scene', 0)
@@ -667,7 +666,7 @@ class Converter():
             translation = LVector3()
             rotation = LVector3()
             scale = LVector3()
-            decompose_matrix(self.csxform_inv * joint_mat * self.csxform, scale, rotation, translation, CS_yup_right)
+            decompose_matrix(self.csxform * joint_mat * self.csxform_inv, scale, rotation, translation, CS_yup_right)
 
             # Override defaults with any found animation data
             loc_data = extract_chan_data('translation')
@@ -700,7 +699,7 @@ class Converter():
                 mat *= LMatrix4.scale_mat(frame_scale)
                 mat = frame_rotation * mat
                 mat *= LMatrix4.translate_mat(frame_translation)
-                mat = self.csxform * mat * self.csxform_inv
+                mat = self.csxform_inv * mat * self.csxform
 
                 frame_translation = LVector3()
                 frame_scale = LVector3()
@@ -784,7 +783,7 @@ class Converter():
 
             # glTF uses an absolute bind pose, Panda wants it local
             bind_pose = joint_mat * inv_transform
-            joint = CharacterJoint(character, bundle, parent, node_name, self.csxform * bind_pose * self.csxform_inv)
+            joint = CharacterJoint(character, bundle, parent, node_name, self.csxform_inv * bind_pose * self.csxform)
 
             # Non-deforming bones are not in the skin's jointNames, don't add them to the jvtmap
             if joint_index is not None:
@@ -980,7 +979,7 @@ class Converter():
         geom.add_primitive(prim)
         if calc_tangents:
             self.calculate_tangents(geom)
-        geom.transform_vertices(self.csxform_inv)
+        geom.transform_vertices(self.csxform)
         geom_node.add_geom(geom, mat)
 
     def calculate_tangents(self, geom):
