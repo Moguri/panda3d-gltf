@@ -948,7 +948,7 @@ class Converter():
 
             buffview = gltf_data['bufferViews'][index_acc['bufferView']]
             buff = self.buffers[buffview['buffer']]
-            start = buffview['byteOffset']
+            start = buffview.get('byteOffset', 0) + index_acc.get('byteOffset', 0)
             end = start + index_acc['count'] * buffview.get('byteStride', 1) * prim.index_stride
             handle.copy_data_from(buff[start:end])
             handle = None
