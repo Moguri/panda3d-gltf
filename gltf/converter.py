@@ -24,11 +24,13 @@ GltfSettings = collections.namedtuple('GltfSettings', (
     'physics_engine',
     'print_scene',
     'skip_axis_conversion',
+    'no_srgb',
 ))
 GltfSettings.__new__.__defaults__ = (
     'builtin', # physics engine
     False, # print_scene
     False, # skip_axis_conversion
+    False, # do not load textures as sRGB
 )
 
 
@@ -398,6 +400,9 @@ class Converter():
             return memoryview(buff)[start:end]
 
     def make_texture_srgb(self, texture):
+        if self.settings.no_srgb:
+            return
+
         if texture.get_num_components() == 3:
             texture.set_format(Texture.F_srgb)
         elif texture.get_num_components() == 4:

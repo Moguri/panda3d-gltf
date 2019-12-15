@@ -33,12 +33,19 @@ def main():
         help='do not perform axis-conversion (useful if glTF data is already Z-Up)'
     )
 
+    parser.add_argument(
+        '--no-srgb',
+        action='store_true',
+        help='do not load textures as sRGB textures'
+    )
+
     args = parser.parse_args()
 
     settings = gltf.GltfSettings(
         physics_engine=args.physics_engine,
         print_scene=args.print_scene,
         skip_axis_conversion=args.skip_axis_conversion,
+        no_srgb=args.no_srgb,
     )
 
     gltf.converter.convert(args.src, args.dst, settings)
