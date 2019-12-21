@@ -39,6 +39,16 @@ def main():
         help='do not load textures as sRGB textures'
     )
 
+    parser.add_argument(
+        '--textures',
+        choices=[
+            'ref',
+            'copy',
+        ],
+        default='ref',
+        help='control what to do with external textures (embedded textures will remain embedded)'
+    )
+
     args = parser.parse_args()
 
     settings = gltf.GltfSettings(
@@ -46,6 +56,7 @@ def main():
         print_scene=args.print_scene,
         skip_axis_conversion=args.skip_axis_conversion,
         no_srgb=args.no_srgb,
+        textures=args.textures,
     )
 
     gltf.converter.convert(args.src, args.dst, settings)

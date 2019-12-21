@@ -4,6 +4,7 @@ import itertools
 import json
 import os
 import math
+import shutil
 import struct
 import tempfile
 import pprint # pylint: disable=unused-import
@@ -26,12 +27,14 @@ GltfSettings = collections.namedtuple('GltfSettings', (
     'print_scene',
     'skip_axis_conversion',
     'no_srgb',
+    'textures',
 ))
 GltfSettings.__new__.__defaults__ = (
     'builtin', # physics engine
     False, # print_scene
     False, # skip_axis_conversion
     False, # do not load textures as sRGB
+    'ref', # reference external textures
 )
 
 
@@ -445,6 +448,12 @@ class Converter():
                 uri = write_tex_image('jpeg')
             else:
                 uri = Filename.fromOsSpecific(uri)
+                if self.settings.textures == 'copy':
+                    src = os.path.join(self.indir.to_os_specific(), uri)
+                    dst = os.path.join(self.outdir.to_os_specific(), uri)
+                    outdir = os.path.dirname(dst)
+                    os.makedirs(outdir, exist_ok=True)
+                    shutil.copy(src, dst)
             texture = TexturePool.load_texture(uri, 0, False, LoaderOptions())
         else:
             view = self.get_buffer_view(gltf_data, source['bufferView'])
