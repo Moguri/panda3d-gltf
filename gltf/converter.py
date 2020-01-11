@@ -579,6 +579,7 @@ class Converter():
                 continue
 
             texstage = TextureStage(str(i))
+            texstage.set_sort(i)
             texstage.set_texcoord_name(InternalName.get_texcoord_name(str(texinfo.get('texCoord', 0))))
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
