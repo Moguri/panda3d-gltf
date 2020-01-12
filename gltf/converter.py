@@ -417,7 +417,7 @@ class Converter():
 
         texture = Texture('normal-fallback')
         texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgb)
-        texture.set_clear_color(LColor(0, 0, 1, 1))
+        texture.set_clear_color(LColor(0.5, 0.5, 1, 1))
 
         self.textures['__normal-fallback'] = texture
 
