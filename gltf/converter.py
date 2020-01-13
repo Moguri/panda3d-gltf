@@ -412,12 +412,14 @@ class Converter():
         texture = Texture('pbr-fallback')
         texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgba)
         texture.set_clear_color(LColor(1, 1, 1, 1))
+        texture.make_ram_image()
 
         self.textures['__pbr-fallback'] = texture
 
         texture = Texture('normal-fallback')
         texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgb)
         texture.set_clear_color(LColor(0.5, 0.5, 1, 1))
+        texture.make_ram_image()
 
         self.textures['__normal-fallback'] = texture
 
