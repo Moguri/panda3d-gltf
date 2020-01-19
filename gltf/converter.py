@@ -1,6 +1,7 @@
 import base64
 import collections
 import itertools
+import json
 import os
 import math
 import struct
@@ -1261,8 +1262,6 @@ def read_glb_chunk(glb_file):
 
 
 def convert(src, dst, settings=None):
-    import json
-
     if settings is None:
         settings = GltfSettings()
 

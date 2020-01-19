@@ -1,6 +1,7 @@
 import os
 
 import panda3d.core as p3d
+from direct.showbase.ShowBase import ShowBase
 import pytest #pylint:disable=wrong-import-order
 
 import gltf
@@ -10,7 +11,6 @@ import gltf
 
 @pytest.fixture(scope='session')
 def showbase():
-    from direct.showbase.ShowBase import ShowBase
     p3d.load_prc_file_data('', 'window-type none')
     base = ShowBase()
     gltf.patch_loader(base.loader)

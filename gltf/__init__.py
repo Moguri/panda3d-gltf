@@ -1,3 +1,5 @@
+import types
+
 import panda3d.core as p3d
 
 from .converter import load_model, GltfSettings
@@ -13,7 +15,6 @@ def patch_loader(loader, gltf_settings=None):
 
     registry = p3d.LoaderFileTypeRegistry.get_global_ptr()
     if not hasattr(registry, 'register_type'):
-        import types
         _load_model = loader.load_model
 
         def new_load_model(self, model_path, **kwargs):
