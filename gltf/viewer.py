@@ -5,9 +5,9 @@ from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
 import panda3d.core as p3d
 
-import gltf
-
 import simplepbr
+
+import gltf
 
 p3d.load_prc_file_data(
     __file__,
