@@ -1,7 +1,6 @@
 import os
 import sys
 
-from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
 import panda3d.core as p3d
 
@@ -43,15 +42,13 @@ class App(ShowBase):
         self.cam.set_pos(-6, 6, 6)
         self.cam.look_at(self.model_root)
 
-        if self.model_root.find('**/+Character'):
-            self.actor = Actor(self.model_root)
-            self.actor.reparent_to(self.render)
-            anims = self.actor.get_anim_names()
-            if anims:
-                self.actor.loop(anims[0])
-        else:
-            self.model_root.reparent_to(self.render)
+        self.model_root.reparent_to(self.render)
 
+        if self.model_root.find('**/+Character'):
+            self.anims = p3d.AnimControlCollection()
+            p3d.autoBind(self.model_root.node(), self.anims, ~0)
+            if self.anims.get_num_anims() > 0:
+                self.anims.get_anim(0).loop(True)
 
 def main():
     App().run()
