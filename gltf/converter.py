@@ -158,7 +158,7 @@ class Converter():
         copy_lights = writing_bam and not hasattr(BamWriter, 'root_node')
 
         # Build scenegraphs
-        def add_node(root, gltf_scene, nodeid, jvtmap={}, cvsmap=[]):
+        def add_node(root, gltf_scene, nodeid, jvtmap, cvsmap):
             try:
                 gltf_node = gltf_data['nodes'][nodeid]
             except IndexError:
@@ -353,7 +353,7 @@ class Converter():
                 node_list += gltf_scene['extras']['hidden_nodes']
 
             for nodeid in node_list:
-                add_node(scene_root, gltf_scene, nodeid)
+                add_node(scene_root, gltf_scene, nodeid, {}, {})
 
             self.scenes[sceneid] = scene_root
 
