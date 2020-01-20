@@ -407,6 +407,9 @@ class Converter():
         if self.settings.no_srgb:
             return
 
+        if texture is None:
+            return
+
         if texture.get_num_components() == 3:
             texture.set_format(Texture.F_srgb)
         elif texture.get_num_components() == 4:
