@@ -33,6 +33,10 @@ class App(ShowBase):
 
         self.accept('escape', sys.exit)
         self.accept('q', sys.exit)
+        self.accept('w', self.toggle_wireframe)
+        self.accept('t', self.toggle_texture)
+        self.accept('shift-l', self.model_root.ls)
+        self.accept('shift-a', self.model_root.analyze)
 
         if not self.model_root.find('**/+Light'):
             self.light = self.render.attach_new_node(p3d.PointLight('light'))
