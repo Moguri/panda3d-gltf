@@ -10,7 +10,7 @@ If and when Panda3D gets builtin support for glTF, this module will go into main
 
 ## Features
 * Adds support for native loading of glTF files
-* Supports glTF 2.0 excluding morph targets
+* Supports glTF 2.0
 * Supports binary glTF
 * Includes support for the following extensions:
   * KHR_lights (deprecated in favor of KHR_lights_punctual)
