@@ -94,11 +94,9 @@ class Converter():
         self.mat_states = {}
         self.mat_mesh_map = {}
         self.meshes = {}
-        self.nodes = {}
         self.node_paths = {}
         self.scenes = {}
-        self.characters = {}
-        self.joint_map = {}
+        self.skeletons = {}
 
         # Coordinate system transform matrix
         self.csxform = LMatrix4.convert_mat(CS_yup_right, CS_default)
@@ -155,17 +153,12 @@ class Converter():
         for meshid, gltf_mesh in enumerate(gltf_data.get('meshes', [])):
             self.load_mesh(meshid, gltf_mesh, gltf_data)
 
-        for nodeid, gltf_node in enumerate(gltf_data.get('nodes', [])):
-            node_name = gltf_node.get('name', 'node'+str(nodeid))
-            node = self.nodes.get(nodeid, PandaNode(node_name))
-            self.nodes[nodeid] = node
-
         # If we support writing bam 6.40, we can safely write out
         # instanced lights.  If not, we have to copy it.
         copy_lights = writing_bam and not hasattr(BamWriter, 'root_node')
 
         # Build scenegraphs
-        def add_node(root, gltf_scene, nodeid):
+        def add_node(root, gltf_scene, nodeid, jvtmap, cvsmap):
             try:
                 gltf_node = gltf_data['nodes'][nodeid]
             except IndexError:
@@ -176,25 +169,68 @@ class Converter():
             if nodeid in self._joint_nodes:
                 # don't handle joints here
                 return
-            panda_node = self.nodes[nodeid]
+
+            jvtmap = dict(jvtmap)
+            cvsmap = dict(cvsmap)
+
+            if nodeid in self.skeletons:
+                # This node is the root of an animated character.
+                panda_node = Character(node_name)
+            else:
+                panda_node = PandaNode(node_name)
+
+            # Determine the transformation.
+            if 'matrix' in gltf_node:
+                gltf_mat = LMatrix4(*gltf_node.get('matrix'))
+            else:
+                gltf_mat = LMatrix4(LMatrix4.ident_mat())
+                if 'scale' in gltf_node:
+                    gltf_mat.set_scale_mat(tuple(gltf_node['scale']))
+
+                if 'rotation' in gltf_node:
+                    rot_mat = LMatrix4()
+                    rot = gltf_node['rotation']
+                    quat = LQuaternion(rot[3], rot[0], rot[1], rot[2])
+                    quat.extract_to_matrix(rot_mat)
+                    gltf_mat *= rot_mat
+
+                if 'translation' in gltf_node:
+                    gltf_mat *= LMatrix4.translate_mat(*gltf_node['translation'])
+
+            panda_node.set_transform(TransformState.make_mat(self.csxform_inv * gltf_mat * self.csxform))
+
+            np = self.node_paths.get(nodeid, root.attach_new_node(panda_node))
+            self.node_paths[nodeid] = np
+
+            if nodeid in self.skeletons:
+                self.build_character(panda_node, nodeid, jvtmap, cvsmap, gltf_data)
 
             if 'extras' in gltf_scene and 'hidden_nodes' in gltf_scene['extras']:
                 if nodeid in gltf_scene['extras']['hidden_nodes']:
                     panda_node = panda_node.make_copy()
 
-            np = self.node_paths.get(nodeid, root.attach_new_node(panda_node))
-            self.node_paths[nodeid] = np
-
             if 'mesh' in gltf_node:
-                mesh = self.meshes[gltf_node['mesh']]
-                np_tmp = np
+                meshid = gltf_node['mesh']
+                gltf_mesh = gltf_data['meshes'][meshid]
+                mesh = self.meshes[meshid]
 
-                if 'skin' in gltf_node:
-                    char = self.characters[gltf_node['skin']]
-                    np_tmp = np.attach_new_node(char)
+                # Does this mesh have weights, but are we not under a character?
+                # If so, create a character just for this mesh.
+                if gltf_mesh.get('weights') and not jvtmap and not cvsmap:
+                    mesh_name = gltf_mesh.get('name', 'mesh'+str(meshid))
+                    char = Character(mesh_name)
+                    cvsmap2 = {}
+                    self.build_character(char, nodeid, {}, cvsmap2, gltf_data, recurse=False)
+                    self.combine_mesh_morphs(mesh, meshid, cvsmap2)
 
-                    self.combine_mesh_skin(mesh, gltf_node['skin'])
-                np_tmp.attach_new_node(mesh)
+                    np.attach_new_node(char).attach_new_node(mesh)
+                else:
+                    np.attach_new_node(mesh)
+                    if jvtmap:
+                        self.combine_mesh_skin(mesh, jvtmap)
+                    if cvsmap:
+                        self.combine_mesh_morphs(mesh, meshid, cvsmap)
+
             if 'skin' in gltf_node and not 'mesh' in gltf_node:
                 print(
                     "Warning: node {} has a skin but no mesh"
@@ -281,7 +317,7 @@ class Converter():
 
 
             for child_nodeid in gltf_node.get('children', []):
-                add_node(np, gltf_scene, child_nodeid)
+                add_node(np, gltf_scene, child_nodeid, jvtmap, cvsmap)
 
             # Handle visibility after children are loaded
             def visible_recursive(node, visible):
@@ -317,41 +353,9 @@ class Converter():
                 node_list += gltf_scene['extras']['hidden_nodes']
 
             for nodeid in node_list:
-                add_node(scene_root, gltf_scene, nodeid)
+                add_node(scene_root, gltf_scene, nodeid, {}, {})
 
             self.scenes[sceneid] = scene_root
-
-        # Update node transforms for glTF nodes that have a NodePath
-        for nodeid, gltf_node in enumerate(gltf_data.get('nodes', [])):
-            if nodeid not in self.node_paths:
-                continue
-            np = self.node_paths[nodeid]
-
-            if 'matrix' in gltf_node:
-                gltf_mat = LMatrix4(*gltf_node.get('matrix'))
-            else:
-                gltf_mat = LMatrix4(LMatrix4.ident_mat())
-                if 'scale' in gltf_node:
-                    gltf_mat.set_scale_mat(tuple(gltf_node['scale']))
-
-                if 'rotation' in gltf_node:
-                    rot_mat = LMatrix4()
-                    rot = gltf_node['rotation']
-                    quat = LQuaternion(rot[3], rot[0], rot[1], rot[2])
-                    quat.extract_to_matrix(rot_mat)
-                    gltf_mat *= rot_mat
-
-                if 'translation' in gltf_node:
-                    gltf_mat *= LMatrix4.translate_mat(*gltf_node['translation'])
-
-            if np.has_parent():
-                parent_mat = np.get_parent().get_mat()
-            else:
-                parent_mat = LMatrix4.ident_mat()
-
-            parent_inv = LMatrix4(parent_mat)
-            parent_inv.invert_in_place()
-            np.set_mat(self.csxform_inv * gltf_mat * self.csxform)
 
         # Set the active scene
         sceneid = gltf_data.get('scene', 0)
@@ -626,224 +630,58 @@ class Converter():
 
         self.mat_states[matid] = state
 
-    def create_anim(self, character, root_bone_id, animid, gltf_anim, gltf_data):
-        anim_name = gltf_anim.get('name', 'anim'+str(animid))
-        samplers = gltf_anim['samplers']
-
-        # Blender exports the same number of elements in each time parameter, so find
-        # one and assume that the number of elements is the number of frames
-        time_acc_id = samplers[0]['input']
-        time_acc = gltf_data['accessors'][time_acc_id]
-        time_bv = gltf_data['bufferViews'][time_acc['bufferView']]
-        start = time_acc.get('byteOffset', 0) + time_bv['byteOffset']
-        end = start + time_acc['count'] * 4
-        time_data = [
-            struct.unpack_from('<f', self.buffers[time_bv['buffer']], idx)[0]
-            for idx in range(start, end, 4)
-        ]
-        num_frames = time_acc['count']
-        fps = num_frames / time_data[-1]
-
-        bundle_name = anim_name
-        bundle = AnimBundle(bundle_name, fps, num_frames)
-        skeleton = AnimGroup(bundle, '<skeleton>')
-
-        def create_anim_channel(parent, boneid):
-            bone = gltf_data['nodes'][boneid]
-            bone_name = bone.get('name', 'bone'+str(boneid))
-            channels = [chan for chan in gltf_anim['channels'] if chan['target']['node'] == boneid]
-            joint_mat = character.find_joint(bone_name).get_transform()
-
-            group = AnimChannelMatrixXfmTable(parent, bone_name)
-
-            def get_accessor(path):
-                accessors = [
-                    gltf_data['accessors'][samplers[chan['sampler']]['output']]
-                    for chan in channels
-                    if chan['target']['path'] == path
-                ]
-
-                return accessors[0] if accessors else None
-
-            def extract_chan_data(path):
-                acc = get_accessor(path)
-                if not acc:
-                    return None
-
-                buff_view = gltf_data['bufferViews'][acc['bufferView']]
-                buff_data = self.buffers[buff_view['buffer']]
-                start = acc.get('byteOffset', 0) + buff_view['byteOffset']
-
-                if path == 'rotation':
-                    end = start + acc['count'] * 4 * 4
-                    data = [struct.unpack_from('<ffff', buff_data, idx) for idx in range(start, end, 4 * 4)]
-                else:
-                    end = start + acc['count'] * 3 * 4
-                    data = [struct.unpack_from('<fff', buff_data, idx) for idx in range(start, end, 3 * 4)]
-
-                return data
-
-            # Create default animaton data
-            translation = LVector3()
-            rotation = LVector3()
-            scale = LVector3()
-            decompose_matrix(self.csxform * joint_mat * self.csxform_inv, scale, rotation, translation, CS_yup_right)
-
-            # Override defaults with any found animation data
-            loc_data = extract_chan_data('translation')
-            rot_data = extract_chan_data('rotation')
-            scale_data = extract_chan_data('scale')
-
-            loc_vals = [[], [], []]
-            rot_vals = [[], [], []]
-            scale_vals = [[], [], []]
-
-            for i in range(num_frames):
-                if scale_data:
-                    frame_scale = scale_data[i]
-                else:
-                    frame_scale = scale
-
-                if rot_data:
-                    quat = rot_data[i]
-                    frame_rotation = LQuaternion(quat[3], quat[0], quat[1], quat[2])
-                else:
-                    frame_rotation = LQuaternion()
-                    frame_rotation.set_hpr(rotation, CS_yup_right)
-
-                if loc_data:
-                    frame_translation = loc_data[i]
-                else:
-                    frame_translation = translation
-
-                mat = LMatrix4(LMatrix4.ident_mat())
-                mat *= LMatrix4.scale_mat(frame_scale)
-                mat = frame_rotation * mat
-                mat *= LMatrix4.translate_mat(frame_translation)
-                mat = self.csxform_inv * mat * self.csxform
-
-                frame_translation = LVector3()
-                frame_scale = LVector3()
-                frame_rotation = LVector3()
-                decompose_matrix(mat, frame_scale, frame_rotation, frame_translation)
-
-                loc_vals[0].append(frame_translation[0])
-                loc_vals[1].append(frame_translation[1])
-                loc_vals[2].append(frame_translation[2])
-                rot_vals[0].append(frame_rotation[0])
-                rot_vals[1].append(frame_rotation[1])
-                rot_vals[2].append(frame_rotation[2])
-                scale_vals[0].append(frame_scale[0])
-                scale_vals[1].append(frame_scale[1])
-                scale_vals[2].append(frame_scale[2])
-
-            # Write data to tables
-            group.set_table(b'x', CPTAFloat(PTAFloat(loc_vals[0])))
-            group.set_table(b'y', CPTAFloat(PTAFloat(loc_vals[1])))
-            group.set_table(b'z', CPTAFloat(PTAFloat(loc_vals[2])))
-
-            group.set_table(b'h', CPTAFloat(PTAFloat(rot_vals[0])))
-            group.set_table(b'p', CPTAFloat(PTAFloat(rot_vals[1])))
-            group.set_table(b'r', CPTAFloat(PTAFloat(rot_vals[2])))
-
-            group.set_table(b'i', CPTAFloat(PTAFloat(scale_vals[0])))
-            group.set_table(b'j', CPTAFloat(PTAFloat(scale_vals[1])))
-            group.set_table(b'k', CPTAFloat(PTAFloat(scale_vals[2])))
-
-            for childid in bone.get('children', []):
-                create_anim_channel(group, childid)
-
-        create_anim_channel(skeleton, root_bone_id)
-        character.add_child(AnimBundleNode(character.name, bundle))
-
     def load_skin(self, skinid, gltf_skin, gltf_data):
-        skinname = gltf_skin.get('name', 'char'+str(skinid))
-        #print("Creating character for", skinname)
-        if 'skeleton' in gltf_skin:
-            root_nodeid = gltf_skin['skeleton']
-        else:
-            # find a common root node
-            joint_nodes = [gltf_data['nodes'][i] for i in gltf_skin['joints']]
-            child_set = list(itertools.chain(*[node.get('children', []) for node in joint_nodes]))
-            roots = [nodeid for nodeid in gltf_skin['joints'] if nodeid not in child_set]
-            root_nodeid = roots[0]
+        # Find a common root node.  First gather the parents of each node.
+        # Note that we ignore the "skeleton" property of the glTF file, since it
+        # is just a hint and not particularly necessary.
+        parents = [None] * len(gltf_data['nodes'])
+        for i, node in enumerate(gltf_data['nodes']):
+            for child in node.get('children', ()):
+                parents[child] = i
 
-        root = gltf_data['nodes'][root_nodeid]
+        # Now create a path for each joint node as well as each node that
+        # is skinned with this skeleton, so that both are under the Character.
+        paths = []
+        for i, gltf_node in enumerate(gltf_data['nodes']):
+            if i in gltf_skin['joints'] or gltf_node.get('skin') == skinid:
+                path = [i]
+                while parents[i] is not None:
+                    i = parents[i]
+                    path.insert(0, i)
+                paths.append(tuple(path))
 
-        character = Character(skinname)
-        bundle = character.get_bundle(0)
-        skeleton = PartGroup(bundle, "<skeleton>")
-        jvtmap = {}
+        # Find the longest prefix that is shared by all paths.
+        common_path = paths[0]
+        for path in paths[1:]:
+            path = list(path[:len(common_path)])
+            while path:
+                if common_path[:len(path)] == tuple(path):
+                    common_path = tuple(path)
+                    break
 
-        bind_mats = []
-        ibmacc = gltf_data['accessors'][gltf_skin['inverseBindMatrices']]
-        ibmbv = gltf_data['bufferViews'][ibmacc['bufferView']]
-        start = ibmacc.get('byteOffset', 0) + ibmbv['byteOffset']
-        end = start + ibmacc['count'] * 16 * 4
-        ibmdata = self.buffers[ibmbv['buffer']][start:end]
+                path.pop()
 
-        joint_ids = set()
+        root_nodeid = common_path[-1]
 
-        for i in range(ibmacc['count']):
-            mat = struct.unpack_from('<{}'.format('f'*16), ibmdata, i * 16 * 4)
-            #print('loaded', mat)
-            mat = self.load_matrix(mat)
-            mat.invert_in_place()
-            bind_mats.append(mat)
-
-        def create_joint(parent, nodeid, node, transform):
-            node_name = node.get('name', 'bone'+str(nodeid))
-            inv_transform = LMatrix4(transform)
-            inv_transform.invert_in_place()
-            joint_index = None
-            joint_mat = LMatrix4.ident_mat()
-            if nodeid in gltf_skin['joints']:
-                joint_index = gltf_skin['joints'].index(nodeid)
-                joint_mat = bind_mats[joint_index]
-                self._joint_nodes.add(nodeid)
-
-            # glTF uses an absolute bind pose, Panda wants it local
-            bind_pose = joint_mat * inv_transform
-            joint = CharacterJoint(character, bundle, parent, node_name, self.csxform_inv * bind_pose * self.csxform)
-
-            # Non-deforming bones are not in the skin's jointNames, don't add them to the jvtmap
-            if joint_index is not None:
-                jvtmap[joint_index] = JointVertexTransform(joint)
-
-            joint_ids.add(nodeid)
-
-            for child in node.get('children', []):
-                #print("Create joint for child", child)
-                bone_node = gltf_data['nodes'][child]
-                create_joint(joint, child, bone_node, bind_pose * transform)
-
-        create_joint(skeleton, root_nodeid, root, LMatrix4.ident_mat())
-
-        self.characters[skinid] = character
-        self.joint_map[skinid] = jvtmap
-
-        # convert animations
-        #print("Looking for actions for", skinname, joint_ids)
-        anims = [
-            (animid, anim)
-            for animid, anim in enumerate(gltf_data.get('animations', []))
-            if joint_ids & {chan['target']['node'] for chan in anim['channels']}
-        ]
-
-        if anims:
-            #print("Found anims for", skinname)
-            for animid, gltf_anim in anims:
-                #print("\t", gltf_anim.get('name', 'anim'+str(animid)))
-                self.create_anim(character, root_nodeid, animid, gltf_anim, gltf_data)
+        self.skeletons[root_nodeid] = skinid
 
     def load_primitive(self, geom_node, gltf_primitive, gltf_data):
         # Build Vertex Format
         vformat = GeomVertexFormat()
         mesh_attribs = gltf_primitive['attributes']
         accessors = [
-            {**gltf_data['accessors'][acc_idx], 'attrib': attrib_name}
+            {**gltf_data['accessors'][acc_idx], '_attrib': attrib_name}
             for attrib_name, acc_idx in mesh_attribs.items()
         ]
+
+        # Check for morph target columns.
+        targets = gltf_primitive.get('targets', ())
+        for i, target in enumerate(targets):
+            accessors += [
+                {**gltf_data['accessors'][acc_idx], '_attrib': attrib_name, '_target': str(i)}
+                for attrib_name, acc_idx in target.items()
+            ]
+
         accessors = sorted(accessors, key=lambda x: x['bufferView'])
         data_copies = []
         is_skinned = 'JOINTS_0' in mesh_attribs
@@ -857,7 +695,7 @@ class Converter():
             varray = GeomVertexArrayFormat()
             for acc in accs:
                 # Gather column information
-                attrib_parts = acc['attrib'].lower().split('_')
+                attrib_parts = acc['_attrib'].lower().split('_')
                 attrib_name = self._ATTRIB_NAME_MAP.get(attrib_parts[0], attrib_parts[0])
                 if attrib_name == 'texcoord' and len(attrib_parts) > 1:
                     internal_name = InternalName.make(attrib_name+'.', int(attrib_parts[1]))
@@ -866,6 +704,10 @@ class Converter():
                 num_components = self._COMPONENT_NUM_MAP[acc['type']]
                 numeric_type = self._COMPONENT_TYPE_MAP[acc['componentType']]
                 content = self._ATTRIB_CONTENT_MAP.get(attrib_name, GeomEnums.C_other)
+
+                if '_target' in acc:
+                    internal_name = InternalName.get_morph(attrib_name, acc['_target'])
+                    content = GeomEnums.C_morph_delta
 
                 # Add this accessor as a column to the current vertex array format
                 varray.add_column(internal_name, num_components, numeric_type, content)
@@ -913,6 +755,16 @@ class Converter():
                 uvs = uv_data.get_data2f()
                 uv_data.set_data2f(uvs[0], 1 - uvs[1])
 
+        # Flip morph deltas from Y-up to Z-up.  This is apparently not done by
+        # transform_vertices(), below, so we do it ourselves.
+        if self.compose_cs == CS_yup_right:
+            for morph_i in range(reg_format.get_num_morphs()):
+                delta_data = GeomVertexRewriter(vdata, reg_format.get_morph_delta(morph_i))
+
+                while not delta_data.is_at_end():
+                    data = delta_data.get_data3f()
+                    delta_data.set_data3f(data[0], -data[2], data[1])
+
         # Repack mesh data
         vformat = GeomVertexFormat()
         varray_vert = GeomVertexArrayFormat()
@@ -934,10 +786,12 @@ class Converter():
                 )
         vformat.add_array(varray_vert)
 
-        if is_skinned:
+        if is_skinned or targets:
             aspec = GeomVertexAnimationSpec()
             aspec.set_panda()
             vformat.set_animation(aspec)
+
+        if is_skinned:
             varray_blends = GeomVertexArrayFormat()
             varray_blends.add_column(InternalName.get_transform_blend(), 1, GeomEnums.NT_uint16, GeomEnums.C_index)
 
@@ -1079,8 +933,75 @@ class Converter():
             data.append(LVecBase4(gvr.get_data4()))
         return data
 
-    def combine_mesh_skin(self, geom_node, skinid):
-        jvtmap = collections.OrderedDict(sorted(self.joint_map[skinid].items()))
+    def build_character(self, char, nodeid, jvtmap, cvsmap, gltf_data, recurse=True):
+        affected_nodeids = set()
+
+        if nodeid in self.skeletons:
+            skinid = self.skeletons[nodeid]
+            gltf_skin = gltf_data['skins'][skinid]
+
+            if 'skeleton' in gltf_skin:
+                root_nodeids = [gltf_skin['skeleton']]
+            else:
+                # find a common root node
+                joint_nodes = [gltf_data['nodes'][i] for i in gltf_skin['joints']]
+                child_set = list(itertools.chain(*[node.get('children', []) for node in joint_nodes]))
+                root_nodeids = [nodeid for nodeid in gltf_skin['joints'] if nodeid not in child_set]
+
+            jvtmap.update(self.build_character_joints(char, root_nodeids,
+                                                      affected_nodeids, skinid,
+                                                      gltf_data))
+
+        cvsmap.update(self.build_character_sliders(char, nodeid, affected_nodeids,
+                                                   gltf_data, recurse=recurse))
+
+        # Find animations that affect the collected nodes.
+        #print("Looking for actions for", skinname, node_ids)
+        anims = [
+            (animid, anim)
+            for animid, anim in enumerate(gltf_data.get('animations', []))
+            if affected_nodeids & {chan['target']['node'] for chan in anim['channels']}
+        ]
+
+        for animid, gltf_anim in anims:
+            anim_name = gltf_anim.get('name', 'anim'+str(animid))
+            #print("\t", anim_name)
+
+            samplers = gltf_anim['samplers']
+            channels = gltf_anim['channels']
+
+            # Blender exports the same number of elements in each time parameter, so find
+            # one and assume that the number of elements is the number of frames
+            time_acc_id = samplers[0]['input']
+            time_acc = gltf_data['accessors'][time_acc_id]
+            time_bv = gltf_data['bufferViews'][time_acc['bufferView']]
+            start = time_acc.get('byteOffset', 0) + time_bv['byteOffset']
+            end = start + time_acc['count'] * 4
+            time_data = [
+                struct.unpack_from('<f', self.buffers[time_bv['buffer']], idx)[0]
+                for idx in range(start, end, 4)
+            ]
+            num_frames = time_acc['count']
+            fps = num_frames / time_data[-1]
+
+            bundle_name = anim_name
+            bundle = AnimBundle(bundle_name, fps, num_frames)
+
+            if nodeid in self.skeletons and any(chan['target']['path'] != 'weights' for chan in channels):
+                skeleton = AnimGroup(bundle, '<skeleton>')
+                for root_nodeid in root_nodeids:
+                    self.build_animation_skeleton(char, skeleton, root_nodeid,
+                                                  num_frames, gltf_anim, gltf_data)
+
+            if cvsmap and any(chan['target']['path'] == 'weights' for chan in channels):
+                morph = AnimGroup(bundle, 'morph')
+                self.build_animation_morph(morph, nodeid, num_frames, gltf_anim,
+                                           gltf_data, recurse=recurse)
+
+            char.add_child(AnimBundleNode(char.name, bundle))
+
+    def combine_mesh_skin(self, geom_node, jvtmap):
+        jvtmap = collections.OrderedDict(sorted(jvtmap.items()))
 
         for geom in geom_node.modify_geoms():
             gvd = geom.modify_vertex_data()
@@ -1093,6 +1014,7 @@ class Converter():
             for joints, weights in zip(jointdata, weightdata):
                 tblend = TransformBlend()
                 for joint, weight in zip(joints, weights):
+                    joint = int(joint)
                     try:
                         jvt = jvtmap[joint]
                     except KeyError:
@@ -1100,11 +1022,365 @@ class Converter():
                             "Could not find joint in jvtmap:\n\tjoint={}\n\tjvtmap={}"
                             .format(joint, jvtmap)
                         )
-                        continue
-                    tblend.add_transform(jvt, weight)
+                        # Don't warn again for this joint.
+                        jvt = None
+                        jvtmap[joint] = None
+                    if jvt is not None:
+                        tblend.add_transform(jvt, weight)
                 tdata.add_data1i(tbtable.add_blend(tblend))
             tbtable.set_rows(SparseArray.lower_on(gvd.get_num_rows()))
             gvd.set_transform_blend_table(tbtable)
+
+            # Set the transform of the skinned node to the inverse of the parent's
+            # transform.  This allows skinning to happen in global space.
+            net_xform = NodePath(geom_node.get_parent(0)).get_net_transform()
+            inverse = net_xform.get_inverse()
+            gvd.transform_vertices(inverse.get_mat())
+
+    def combine_mesh_morphs(self, geom_node, meshid, cvsmap):
+        zero = LVecBase4.zero()
+
+        for geom in geom_node.modify_geoms():
+            gvd = geom.modify_vertex_data()
+            vformat = gvd.get_format()
+
+            stable = SliderTable()
+
+            for (slider_meshid, name), slider in cvsmap.items():
+                if slider_meshid != meshid:
+                    continue
+
+                # Iterate through the morph columns to figure out which rows are
+                # affected by which slider.
+                rows = SparseArray()
+
+                for morph_i in range(vformat.get_num_morphs()):
+                    column_name = vformat.get_morph_delta(morph_i)
+                    if column_name.basename == name:
+                        gvr = GeomVertexReader(gvd, vformat.get_morph_delta(morph_i))
+                        row = 0
+                        while not gvr.is_at_end():
+                            if gvr.get_data4() != zero:
+                                rows.set_bit(row)
+                            row += 1
+
+                if not rows.is_zero():
+                    stable.add_slider(slider, rows)
+
+            if stable.get_num_sliders() > 0:
+                gvd.set_slider_table(SliderTable.register_table(stable))
+
+    def build_character_joints(self, char, root_nodeids, affected_nodeids, skinid, gltf_data):
+        gltf_skin = gltf_data['skins'][skinid]
+
+        bundle = char.get_bundle(0)
+        skeleton = PartGroup(bundle, "<skeleton>")
+        jvtmap = {}
+
+        bind_mats = []
+        ibmacc = gltf_data['accessors'][gltf_skin['inverseBindMatrices']]
+        ibmbv = gltf_data['bufferViews'][ibmacc['bufferView']]
+        start = ibmacc.get('byteOffset', 0) + ibmbv['byteOffset']
+        end = start + ibmacc['count'] * 16 * 4
+        ibmdata = self.buffers[ibmbv['buffer']][start:end]
+
+        for i in range(ibmacc['count']):
+            mat = struct.unpack_from('<{}'.format('f'*16), ibmdata, i * 16 * 4)
+            #print('loaded', mat)
+            mat = self.load_matrix(mat)
+            mat.invert_in_place()
+            bind_mats.append(mat)
+
+        def create_joint(parent, nodeid, transform):
+            node = gltf_data['nodes'][nodeid]
+            node_name = node.get('name', 'bone'+str(nodeid))
+            inv_transform = LMatrix4(transform)
+            inv_transform.invert_in_place()
+            joint_index = None
+            joint_mat = LMatrix4.ident_mat()
+            if nodeid in gltf_skin['joints']:
+                joint_index = gltf_skin['joints'].index(nodeid)
+                joint_mat = bind_mats[joint_index]
+                self._joint_nodes.add(nodeid)
+
+            # glTF uses an absolute bind pose, Panda wants it local
+            bind_pose = joint_mat * inv_transform
+            joint = CharacterJoint(char, bundle, parent, node_name, self.csxform_inv * bind_pose * self.csxform)
+
+            # Non-deforming bones are not in the skin's jointNames, don't add them to the jvtmap
+            if joint_index is not None:
+                jvtmap[joint_index] = JointVertexTransform(joint)
+
+            affected_nodeids.add(nodeid)
+
+            for child in node.get('children', []):
+                #print("Create joint for child", child)
+                create_joint(joint, child, bind_pose * transform)
+
+        root_mat = self.csxform * NodePath(char).get_net_transform().get_mat() * self.csxform_inv
+        for root_nodeid in root_nodeids:
+            # Construct a path to the root
+            create_joint(skeleton, root_nodeid, root_mat)
+
+        return jvtmap
+
+    def build_character_sliders(self, char, root_nodeid, affected_nodeids, gltf_data, recurse=True):
+        bundle = char.get_bundle(0)
+        morph = PartGroup(bundle, "morph")
+        cvsmap = {}
+
+        def create_slider(nodeid):
+            gltf_node = gltf_data['nodes'][nodeid]
+
+            if 'mesh' in gltf_node:
+                meshid = gltf_node['mesh']
+                gltf_mesh = gltf_data['meshes'][meshid]
+                weights = gltf_mesh.get('weights')
+                if weights:
+                    target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+                    if len(target_names) < len(weights):
+                        target_names += [str(i) for i in range(len(target_names), len(weights))]
+
+                    assert len(target_names) == len(weights)
+                    affected_nodeids.add(nodeid)
+
+                    # If we do this recursively, create a group for every mesh.
+                    if recurse:
+                        group = PartGroup(morph, 'mesh'+str(meshid))
+                    else:
+                        group = morph
+
+                    for i, name in enumerate(target_names):
+                        try:
+                            slider = CharacterSlider(group, str(i), weights[i])
+                        except TypeError:
+                            # Panda versions before 1.10.6.dev6 did not permit default values.
+                            slider = CharacterSlider(group, str(i))
+
+                        cvsmap[(meshid, str(i))] = CharacterVertexSlider(slider)
+
+                        # Set the name to the true name, if this is defined in the extras.
+                        # We have to do this *after* creating the CharacterVertexSlider, so
+                        # that the VertexSlider adopts the index-based name.
+                        if i < len(target_names):
+                            slider.name = name
+
+            if recurse:
+                for child in gltf_node.get('children', []):
+                    create_slider(child)
+
+        create_slider(root_nodeid)
+        return cvsmap
+
+    def build_animation_skeleton(self, character, parent, boneid, num_frames, gltf_anim, gltf_data):
+        samplers = gltf_anim['samplers']
+        bone = gltf_data['nodes'][boneid]
+        bone_name = bone.get('name', 'bone'+str(boneid))
+        channels = [chan for chan in gltf_anim['channels'] if chan['target']['node'] == boneid]
+        joint_mat = character.find_joint(bone_name).get_transform()
+
+        group = AnimChannelMatrixXfmTable(parent, bone_name)
+
+        def get_accessor(path):
+            accessors = [
+                gltf_data['accessors'][samplers[chan['sampler']]['output']]
+                for chan in channels
+                if chan['target']['path'] == path
+            ]
+
+            return accessors[0] if accessors else None
+
+        def extract_chan_data(path):
+            acc = get_accessor(path)
+            if not acc:
+                return None
+
+            buff_view = gltf_data['bufferViews'][acc['bufferView']]
+            buff_data = self.buffers[buff_view['buffer']]
+            start = acc.get('byteOffset', 0) + buff_view['byteOffset']
+
+            if path == 'rotation':
+                end = start + acc['count'] * 4 * 4
+                data = [struct.unpack_from('<ffff', buff_data, idx) for idx in range(start, end, 4 * 4)]
+            else:
+                end = start + acc['count'] * 3 * 4
+                data = [struct.unpack_from('<fff', buff_data, idx) for idx in range(start, end, 3 * 4)]
+
+            return data
+
+        # Create default animaton data
+        translation = LVector3()
+        rotation = LVector3()
+        scale = LVector3()
+        decompose_matrix(self.csxform * joint_mat * self.csxform_inv, scale, rotation, translation, CS_yup_right)
+
+        # Override defaults with any found animation data
+        loc_data = extract_chan_data('translation')
+        rot_data = extract_chan_data('rotation')
+        scale_data = extract_chan_data('scale')
+
+        loc_vals = [[], [], []]
+        rot_vals = [[], [], []]
+        scale_vals = [[], [], []]
+
+        # Repeat last frame if we don't have enough data for all frames.
+        if loc_data and len(loc_data) < num_frames:
+            loc_data += loc_data[-1:] * (num_frames - len(loc_data))
+        if rot_data and len(rot_data) < num_frames:
+            rot_data += rot_data[-1:] * (num_frames - len(rot_data))
+        if scale_data and len(scale_data) < num_frames:
+            scale_data += scale_data[-1:] * (num_frames - len(scale_data))
+
+        for i in range(num_frames):
+            if scale_data:
+                frame_scale = scale_data[i]
+            else:
+                frame_scale = scale
+
+            if rot_data:
+                quat = rot_data[i]
+                frame_rotation = LQuaternion(quat[3], quat[0], quat[1], quat[2])
+            else:
+                frame_rotation = LQuaternion()
+                frame_rotation.set_hpr(rotation, CS_yup_right)
+
+            if loc_data:
+                frame_translation = loc_data[i]
+            else:
+                frame_translation = translation
+
+            mat = LMatrix4(LMatrix4.ident_mat())
+            mat *= LMatrix4.scale_mat(frame_scale)
+            mat = frame_rotation * mat
+            mat *= LMatrix4.translate_mat(frame_translation)
+            mat = self.csxform_inv * mat * self.csxform
+
+            frame_translation = LVector3()
+            frame_scale = LVector3()
+            frame_rotation = LVector3()
+            decompose_matrix(mat, frame_scale, frame_rotation, frame_translation)
+
+            loc_vals[0].append(frame_translation[0])
+            loc_vals[1].append(frame_translation[1])
+            loc_vals[2].append(frame_translation[2])
+            rot_vals[0].append(frame_rotation[0])
+            rot_vals[1].append(frame_rotation[1])
+            rot_vals[2].append(frame_rotation[2])
+            scale_vals[0].append(frame_scale[0])
+            scale_vals[1].append(frame_scale[1])
+            scale_vals[2].append(frame_scale[2])
+
+        # If all frames are the same, we only need to store one frame.
+        if min(loc_vals[0]) == max(loc_vals[0]) and \
+           min(loc_vals[1]) == max(loc_vals[1]) and \
+           min(loc_vals[2]) == max(loc_vals[2]) and \
+           min(rot_vals[0]) == max(rot_vals[0]) and \
+           min(rot_vals[1]) == max(rot_vals[1]) and \
+           min(rot_vals[2]) == max(rot_vals[2]) and \
+           min(scale_vals[0]) == max(scale_vals[0]) and \
+           min(scale_vals[1]) == max(scale_vals[1]) and \
+           min(scale_vals[2]) == max(scale_vals[2]):
+            loc_vals[0] = loc_vals[0][:1]
+            loc_vals[1] = loc_vals[1][:1]
+            loc_vals[2] = loc_vals[2][:1]
+            rot_vals[0] = rot_vals[0][:1]
+            rot_vals[1] = rot_vals[1][:1]
+            rot_vals[2] = rot_vals[2][:1]
+            scale_vals[0] = scale_vals[0][:1]
+            scale_vals[1] = scale_vals[1][:1]
+            scale_vals[2] = scale_vals[2][:1]
+
+        # Write data to tables
+        group.set_table(b'x', CPTAFloat(PTAFloat(loc_vals[0])))
+        group.set_table(b'y', CPTAFloat(PTAFloat(loc_vals[1])))
+        group.set_table(b'z', CPTAFloat(PTAFloat(loc_vals[2])))
+
+        group.set_table(b'h', CPTAFloat(PTAFloat(rot_vals[0])))
+        group.set_table(b'p', CPTAFloat(PTAFloat(rot_vals[1])))
+        group.set_table(b'r', CPTAFloat(PTAFloat(rot_vals[2])))
+
+        group.set_table(b'i', CPTAFloat(PTAFloat(scale_vals[0])))
+        group.set_table(b'j', CPTAFloat(PTAFloat(scale_vals[1])))
+        group.set_table(b'k', CPTAFloat(PTAFloat(scale_vals[2])))
+
+        for childid in bone.get('children', []):
+            self.build_animation_skeleton(character, group, childid, num_frames, gltf_anim, gltf_data)
+
+    def build_animation_morph(self, parent, nodeid, num_frames, gltf_anim, gltf_data, recurse=True):
+        samplers = gltf_anim['samplers']
+
+        def create_channels(parent, nodeid, target_names, default_weights):
+            channels = [
+                chan for chan in gltf_anim['channels']
+                if chan['target']['node'] == nodeid and chan['target']['path'] == 'weights'
+            ]
+
+            accessors = [
+                gltf_data['accessors'][samplers[chan['sampler']]['output']]
+                for chan in channels
+                if chan['target']['path'] == 'weights'
+            ]
+
+            if accessors:
+                acc = accessors[0]
+                buff_view = gltf_data['bufferViews'][acc['bufferView']]
+                buff_data = self.buffers[buff_view['buffer']]
+                start = acc.get('byteOffset', 0) + buff_view['byteOffset']
+
+                end = start + acc['count'] * 4
+                weights = list(CPTAFloat(buff_data[start:end]))
+            else:
+                weights = default_weights
+
+            num_targets = len(default_weights)
+
+            for i, target_name in enumerate(target_names):
+                try:
+                    group = AnimChannelScalarTable(parent, target_name)
+                except TypeError:
+                    # Panda version too old, requires at least 1.10.6.dev5
+                    return
+
+                target_weights = weights[i::num_targets]
+
+                if min(target_weights) == max(target_weights):
+                    # If all frames are the same, we only need to store one frame.
+                    target_weights = target_weights[:1]
+                elif len(target_weights) > 1 and len(target_weights) < num_frames:
+                    # If we don't have enough frames, repeat the last value.
+                    target_weights += target_weights[-1:] * (num_frames - len(target_weights))
+                elif len(target_weights) > num_frames:
+                    # We have too many frames.
+                    target_weights = target_weights[:num_frames]
+
+                group.set_table(CPTAFloat(target_weights))
+
+        gltf_node = gltf_data['nodes'][nodeid]
+
+        if 'mesh' in gltf_node:
+            meshid = gltf_node['mesh']
+            gltf_mesh = gltf_data['meshes'][meshid]
+            weights = gltf_mesh.get('weights')
+            if weights:
+                target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+                if len(target_names) < len(weights):
+                    target_names += [str(i) for i in range(len(target_names), len(weights))]
+
+                assert len(target_names) == len(weights)
+
+                # If we do this recursively, group the sliders for each mesh
+                # under a group for their respective mesh, so that the names will
+                # not conflict.
+                if recurse:
+                    group = AnimGroup(parent, 'mesh'+str(meshid))
+                else:
+                    group = parent
+
+                create_channels(group, nodeid, target_names, weights)
+
+        if recurse:
+            for child in gltf_node.get('children', []):
+                self.build_animation_morph(parent, child, num_frames, gltf_anim, gltf_data)
 
     def load_camera(self, camid, gltf_camera):
         camname = gltf_camera.get('name', 'cam'+str(camid))
