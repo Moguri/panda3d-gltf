@@ -665,7 +665,7 @@ class Converter():
 
         self.skeletons[root_nodeid] = skinid
 
-    def load_primitive(self, geom_node, gltf_primitive, gltf_data):
+    def load_primitive(self, geom_node, gltf_primitive, gltf_mesh, gltf_data):
         # Build Vertex Format
         vformat = GeomVertexFormat()
         mesh_attribs = gltf_primitive['attributes']
@@ -675,12 +675,20 @@ class Converter():
         ]
 
         # Check for morph target columns.
-        targets = gltf_primitive.get('targets', ())
-        for i, target in enumerate(targets):
-            accessors += [
-                {**gltf_data['accessors'][acc_idx], '_attrib': attrib_name, '_target': str(i)}
-                for attrib_name, acc_idx in target.items()
-            ]
+        targets = gltf_primitive.get('targets')
+        if targets:
+            target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+
+            for i, target in enumerate(targets):
+                if i < len(target_names):
+                    target_name = target_names[i]
+                else:
+                    target_name = str(i)
+
+                accessors += [
+                    {**gltf_data['accessors'][acc_idx], '_attrib': attrib_name, '_target': target_name}
+                    for attrib_name, acc_idx in target.items()
+                ]
 
         accessors = sorted(accessors, key=lambda x: x['bufferView'])
         data_copies = []
@@ -921,7 +929,7 @@ class Converter():
 
         # Load primitives
         for gltf_primitive in gltf_mesh['primitives']:
-            self.load_primitive(node, gltf_primitive, gltf_data)
+            self.load_primitive(node, gltf_primitive, gltf_mesh, gltf_data)
 
         # Save mesh
         self.meshes[meshid] = node
@@ -1152,18 +1160,12 @@ class Converter():
 
                     for i, name in enumerate(target_names):
                         try:
-                            slider = CharacterSlider(group, str(i), weights[i])
+                            slider = CharacterSlider(group, name, weights[i])
                         except TypeError:
                             # Panda versions before 1.10.6.dev6 did not permit default values.
-                            slider = CharacterSlider(group, str(i))
+                            slider = CharacterSlider(group, name)
 
-                        cvsmap[(meshid, str(i))] = CharacterVertexSlider(slider)
-
-                        # Set the name to the true name, if this is defined in the extras.
-                        # We have to do this *after* creating the CharacterVertexSlider, so
-                        # that the VertexSlider adopts the index-based name.
-                        if i < len(target_names):
-                            slider.name = name
+                        cvsmap[(meshid, name)] = CharacterVertexSlider(slider)
 
             if recurse:
                 for child in gltf_node.get('children', []):
