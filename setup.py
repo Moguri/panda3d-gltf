@@ -8,6 +8,7 @@ setup(
     version=__version__,
     keywords='panda3d gltf',
     packages=['gltf'],
+    python_requires='>=3.6',
     install_requires=[
         'panda3d',
         'panda3d-simplepbr>=0.2.2',
