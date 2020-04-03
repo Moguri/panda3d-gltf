@@ -916,7 +916,7 @@ class Converter():
                 tangent.z,
                 -1.0 if normal.cross(tan0).dot(tan1) < 0 else 1.0
             )
-            tangent_writer.set_data4f(tangent4)
+            tangent_writer.set_data4(tangent4)
 
         geom.set_vertex_data(gvd)
 
