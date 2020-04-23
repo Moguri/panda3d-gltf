@@ -277,7 +277,7 @@ class Converter():
                                 "Could not find physics mesh ({}) for object ({})"
                                 .format(collision_shape['mesh'], nodeid)
                             )
-                    if 'BP_physics_engine' in gltf_data['extensions']:
+                    if 'extensions' in gltf_data and 'BP_physics_engine' in gltf_data['extensions']:
                         use_bullet = (
                             gltf_data['extensions']['BP_physics_engine']['engine'] == 'bullet'
                         )
