@@ -22,7 +22,7 @@ class App(ShowBase):
 
         super().__init__()
 
-        simplepbr.init()
+        self.pipeline = simplepbr.init()
 
         gltf.patch_loader(self.loader)
 
@@ -35,6 +35,10 @@ class App(ShowBase):
         self.accept('q', sys.exit)
         self.accept('w', self.toggle_wireframe)
         self.accept('t', self.toggle_texture)
+        self.accept('n', self.toggle_normal_maps)
+        self.accept('e', self.toggle_emission_maps)
+        self.accept('o', self.toggle_occlusion_maps)
+        self.accept('a', self.toggle_ambient_light)
         self.accept('shift-l', self.model_root.ls)
         self.accept('shift-a', self.model_root.analyze)
 
@@ -48,11 +52,30 @@ class App(ShowBase):
 
         self.model_root.reparent_to(self.render)
 
+        self.ambient = self.render.attach_new_node(p3d.AmbientLight('ambient'))
+        self.ambient.node().set_color((.2, .2, .2, 1))
+        self.render.set_light(self.ambient)
+
         if self.model_root.find('**/+Character'):
             self.anims = p3d.AnimControlCollection()
             p3d.autoBind(self.model_root.node(), self.anims, ~0)
             if self.anims.get_num_anims() > 0:
                 self.anims.get_anim(0).loop(True)
+
+    def toggle_normal_maps(self):
+        self.pipeline.use_normal_maps = not self.pipeline.use_normal_maps
+
+    def toggle_emission_maps(self):
+        self.pipeline.use_emission_maps = not self.pipeline.use_emission_maps
+
+    def toggle_occlusion_maps(self):
+        self.pipeline.use_occlusion_maps = not self.pipeline.use_occlusion_maps
+
+    def toggle_ambient_light(self):
+        if self.render.has_light(self.ambient):
+            self.render.clear_light(self.ambient)
+        else:
+            self.render.set_light(self.ambient)
 
 def main():
     App().run()
