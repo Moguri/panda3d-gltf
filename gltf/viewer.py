@@ -3,6 +3,7 @@ import sys
 
 from direct.showbase.ShowBase import ShowBase
 import panda3d.core as p3d
+from math import tan, radians
 
 import simplepbr
 
@@ -38,15 +39,26 @@ class App(ShowBase):
         self.accept('shift-l', self.model_root.ls)
         self.accept('shift-a', self.model_root.analyze)
 
+        self.model_root.reparent_to(self.render)
+
+        bounds = self.model_root.getBounds()
+        center = bounds.get_center()
+        radius = bounds.get_radius()
+
+        fov = self.camLens.get_fov()
+        distance = radius / tan(radians(min(fov[0], fov[1]) / 2.0))
+        idealFarPlane = distance + radius * 1.5
+        self.camLens.set_near(min(self.camLens.get_default_near(), radius / 2))
+        self.camLens.set_far(max(self.camLens.get_default_far(), distance + radius * 2))
+        trackball = self.trackball.node()
+        trackball.set_origin(center)
+        trackball.set_pos(0, distance, 0)
+        trackball.setForwardScale(distance * 0.006)
+
         if not self.model_root.find('**/+Light'):
             self.light = self.render.attach_new_node(p3d.PointLight('light'))
-            self.light.set_pos(-5, 5, 5)
+            self.light.set_pos(0, -distance, distance)
             self.render.set_light(self.light)
-
-        self.cam.set_pos(-6, 6, 6)
-        self.cam.look_at(self.model_root)
-
-        self.model_root.reparent_to(self.render)
 
         if self.model_root.find('**/+Character'):
             self.anims = p3d.AnimControlCollection()
