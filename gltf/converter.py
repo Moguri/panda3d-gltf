@@ -427,6 +427,12 @@ class Converter():
 
         self.textures['__pbr-fallback'] = texture
 
+        texture = Texture('emission-fallback')
+        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgba)
+        texture.set_clear_color(LColor(0, 0, 0, 0))
+
+        self.textures['__emission-fallback'] = texture
+
         texture = Texture('normal-fallback')
         texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgb)
         texture.set_clear_color(LColor(0.5, 0.5, 1, 1))
@@ -539,6 +545,7 @@ class Converter():
 
         pmat = Material(matname)
         pbr_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
+        emission_fallback = {'index': '__emission-fallback', 'texCoord': 0}
         normal_fallback = {'index': '__normal-fallback', 'texCoord': 0}
         texinfos = []
 
@@ -584,6 +591,12 @@ class Converter():
 
         # Normal map
         texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
+
+        #Emission map
+        pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
+        texinfos.append(gltf_mat.get('emissiveTexture', emission_fallback))
+        if texinfos[-1]['index'] in self.textures:
+            self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
