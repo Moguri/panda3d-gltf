@@ -1,9 +1,9 @@
+import math
 import os
 import sys
 
 from direct.showbase.ShowBase import ShowBase
 import panda3d.core as p3d
-from math import tan, radians
 
 import simplepbr
 
@@ -46,8 +46,7 @@ class App(ShowBase):
         radius = bounds.get_radius()
 
         fov = self.camLens.get_fov()
-        distance = radius / tan(radians(min(fov[0], fov[1]) / 2.0))
-        idealFarPlane = distance + radius * 1.5
+        distance = radius / math.tan(math.radians(min(fov[0], fov[1]) / 2.0))
         self.camLens.set_near(min(self.camLens.get_default_near(), radius / 2))
         self.camLens.set_far(max(self.camLens.get_default_far(), distance + radius * 2))
         trackball = self.trackball.node()

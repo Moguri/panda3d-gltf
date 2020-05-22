@@ -18,7 +18,7 @@ setup(
     ],
     tests_require=[
         'pytest',
-        'pylint==2.4.*',
+        'pylint~=2.5.0',
         'pytest-pylint',
     ],
     entry_points={
