@@ -54,6 +54,13 @@ class App(ShowBase):
         trackball.set_pos(0, distance, 0)
         trackball.setForwardScale(distance * 0.006)
 
+        # Move lights to render
+        self.model_root.clear_light()
+        for light in self.model_root.find_all_matches('**/+Light'):
+            light.parent.reparent_to(self.render)
+            self.render.set_light(light)
+
+        # Create a light if the model does not have one
         if not self.model_root.find('**/+Light'):
             self.light = self.render.attach_new_node(p3d.PointLight('light'))
             self.light.set_pos(0, -distance, distance)
