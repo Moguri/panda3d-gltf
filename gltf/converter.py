@@ -255,8 +255,8 @@ class Converter():
                     if copy_lights:
                         light = light.make_copy()
                     lnp = np.attach_new_node(light)
-                    if isinstance(light, Spotlight):
-                        lnp.set_p(lnp.get_p() - 90)
+                    lnp.set_p(lnp.get_p() - 90)
+                    lnp.set_r(lnp.get_r() - 90)
                     if isinstance(light, Light):
                         root.set_light(lnp)
 
@@ -1426,7 +1426,6 @@ class Converter():
                 node = PointLight(lightname)
             elif ltype == 'directional':
                 node = DirectionalLight(lightname)
-                node.set_direction((0, 0, -1))
             elif ltype == 'spot':
                 node = Spotlight(lightname)
             else:
