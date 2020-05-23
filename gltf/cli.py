@@ -1,6 +1,7 @@
 import argparse
 
 import gltf.converter
+from gltf.version import __version__
 
 
 def main():
@@ -10,6 +11,12 @@ def main():
 
     parser.add_argument('src', type=str, help='source file')
     parser.add_argument('dst', type=str, help='destination file')
+
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s {}'.format(__version__)
+    )
 
     parser.add_argument(
         '--physics-engine',
