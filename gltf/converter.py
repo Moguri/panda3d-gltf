@@ -1029,6 +1029,9 @@ class Converter():
             tbtable = TransformBlendTable()
             tdata = GeomVertexWriter(gvd, InternalName.get_transform_blend())
 
+            if not tdata.has_column():
+                continue
+
             jointdata = self.read_vert_data(gvd, InternalName.get_transform_index())
             weightdata = self.read_vert_data(gvd, InternalName.get_transform_weight())
 
