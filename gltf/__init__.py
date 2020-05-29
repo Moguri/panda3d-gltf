@@ -10,8 +10,9 @@ from .version import __version__
 def patch_loader(loader, gltf_settings=None):
     '''Monkey patch the supplied Loader to add glTF support'''
     if gltf_settings is None:
-        gltf_settings = GltfSettings()
-    GltfLoader.global_settings = gltf_settings
+        gltf_settings = GltfLoader.global_settings
+    else:
+        GltfLoader.global_settings = gltf_settings
 
     registry = p3d.LoaderFileTypeRegistry.get_global_ptr()
     if not hasattr(registry, 'register_type'):
