@@ -1501,7 +1501,10 @@ class Converter():
             print("Unknown collision shape ({}) for object ({})".format(shape_type, nodeid))
 
         if shape is not None:
-            phynode = bullet.BulletRigidBodyNode(node_name)
+            if gltf_rigidbody.get('intangible'):
+                phynode = bullet.BulletGhostNode(node_name)
+            else:
+                phynode = bullet.BulletRigidBodyNode(node_name)
             phynode.add_shape(shape)
             if not static:
                 phynode.set_mass(gltf_rigidbody['mass'])
@@ -1512,10 +1515,12 @@ class Converter():
     def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, _gltf_rigidbody):
         phynode = CollisionNode(node_name)
 
+        solids = []
+
         if shape_type == 'BOX':
-            phynode.add_solid(CollisionBox(Point3(0, 0, 0), *LVector3(*bounding_box) / 2.0))
+            solids.append(CollisionBox(Point3(0, 0, 0), *LVector3(*bounding_box) / 2.0))
         elif shape_type == 'SPHERE':
-            phynode.add_solid(CollisionSphere(0, 0, 0, radius))
+            solids.append(CollisionSphere(0, 0, 0, radius))
         elif shape_type in ('CAPSULE', 'CYLINDER', 'CONE'):
             if shape_type != 'CAPSULE':
                 print(
@@ -1527,7 +1532,7 @@ class Converter():
             half_height = height / 2.0 - radius
             start = LPoint3(0, 0, -half_height)
             end = LPoint3(0, 0, half_height)
-            phynode.add_solid(CollisionCapsule(start, end, radius))
+            solids.append(CollisionCapsule(start, end, radius))
         elif shape_type in ('MESH', 'CONVEX_HULL'):
             if shape_type != 'MESH':
                 print(
@@ -1549,9 +1554,14 @@ class Converter():
 
                 polys = zip(*([iter(verts)] * 3))
                 for poly in polys:
-                    phynode.add_solid(CollisionPolygon(*poly))
+                    solids.append(CollisionPolygon(*poly))
         else:
             print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
+
+        for solid in solids:
+            if _gltf_rigidbody.get('intangible'):
+                solid.set_tangible(False)
+            phynode.add_solid(solid)
 
         if phynode.solids:
             return phynode
