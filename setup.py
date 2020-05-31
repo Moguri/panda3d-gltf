@@ -11,7 +11,7 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'panda3d',
-        'panda3d-simplepbr>=0.2.2',
+        'panda3d-simplepbr>=0.6',
     ],
     setup_requires=[
         'pytest-runner'
