@@ -1003,7 +1003,8 @@ class Converter():
                 for idx in range(start, end, 4)
             ]
             num_frames = time_acc['count']
-            fps = num_frames / time_data[-1]
+            end_time = time_data[-1]
+            fps = num_frames / time_data[-1] if end_time != 0 else 24
 
             bundle_name = anim_name
             bundle = AnimBundle(bundle_name, fps, num_frames)
