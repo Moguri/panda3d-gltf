@@ -935,7 +935,10 @@ class Converter():
                 tangent.z,
                 -1.0 if normal.cross(tan0).dot(tan1) < 0 else 1.0
             )
-            tangent_writer.set_data4(tangent4)
+            if self.compose_cs == CS_yup_right:
+                tangent_writer.set_data4(tangent4[0], -tangent4[2], tangent4[1], tangent4[3])
+            else:
+                tangent_writer.set_data4(tangent4)
 
         geom.set_vertex_data(gvd)
 
