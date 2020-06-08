@@ -926,7 +926,7 @@ class Converter():
             if denom != 0.0:
                 fconst = 1.0 / denom
                 tangent = (edge1.xyz * duv2.y - edge2.xyz * duv1.y) * fconst
-                bitangent = (edge1.xyz * duv2.x - edge2.xyz * duv1.x) * fconst
+                bitangent = (edge2.xyz * duv1.x - edge1.xyz * duv2.x) * fconst
             else:
                 tangent = LVector3(0)
                 bitangent = LVector3(0)
