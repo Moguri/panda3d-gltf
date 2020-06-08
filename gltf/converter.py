@@ -776,15 +776,21 @@ class Converter():
                 uvs = uv_data.get_data2f()
                 uv_data.set_data2f(uvs[0], 1 - uvs[1])
 
-        # Flip morph deltas from Y-up to Z-up.  This is apparently not done by
-        # transform_vertices(), below, so we do it ourselves.
         if self.compose_cs == CS_yup_right:
+            # Flip morph deltas from Y-up to Z-up.  This is apparently not done by
+            # transform_vertices(), below, so we do it ourselves.
             for morph_i in range(reg_format.get_num_morphs()):
                 delta_data = GeomVertexRewriter(vdata, reg_format.get_morph_delta(morph_i))
 
                 while not delta_data.is_at_end():
                     data = delta_data.get_data3f()
                     delta_data.set_data3f(data[0], -data[2], data[1])
+            # Flip tangents from Y-up to Z-up.
+            if 'TANGENT' in mesh_attribs:
+                tangent = GeomVertexRewriter(vdata, InternalName.make('tangent'))
+                while not tangent.is_at_end():
+                    data = tangent.get_data4f()
+                    tangent.set_data4f(data[0], -data[2], data[1], data[3])
 
         # Repack mesh data
         vformat = GeomVertexFormat()
