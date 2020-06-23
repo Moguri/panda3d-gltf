@@ -386,7 +386,10 @@ class Converter():
             buff_data = gltf_buffer['uri'].split(',')[1]
             buff_data = base64.b64decode(buff_data)
         elif uri.endswith('.bin'):
-            buff_fname = os.path.join(self.indir.to_os_specific(), uri)
+            if uri.startswith('/'):
+                buff_fname = uri
+            else:
+                buff_fname = os.path.join(self.indir.to_os_specific(), uri)
             with open(buff_fname, 'rb') as buff_file:
                 buff_data = buff_file.read(gltf_buffer['byteLength'])
         else:
