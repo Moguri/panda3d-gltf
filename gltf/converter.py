@@ -260,11 +260,22 @@ class Converter():
                     if isinstance(light, Light):
                         root.set_light(lnp)
 
-                if 'BLENDER_physics' in gltf_node['extensions']:
-                    gltf_collisions = gltf_node['extensions']['BLENDER_physics']
-                    gltf_rigidbody = gltf_node['extensions']['BLENDER_physics']
-                    collision_shape = gltf_collisions['collisionShapes'][0]
-                    shape_type = collision_shape['shapeType']
+                has_physics = (
+                    'BLENDER_physics' in gltf_node['extensions'] or
+                    'PANDA3D_physics_collision_shapes' in gltf_node['extensions']
+                )
+                if has_physics:
+                    gltf_collisions = gltf_node['extensions'].get(
+                        'PANDA3D_physics_collision_shapes',
+                        gltf_node['extensions']['BLENDER_physics']
+                    )
+                    gltf_rigidbody = gltf_node['extensions'].get('BLENDER_physics', None)
+                    if 'PANDA3D_physics_collision_shapes' in gltf_node['extensions']:
+                        collision_shape = gltf_collisions['shapes'][0]
+                        shape_type = collision_shape['type']
+                    else:
+                        collision_shape = gltf_collisions['collisionShapes'][0]
+                        shape_type = collision_shape['shapeType']
                     bounding_box = collision_shape['boundingBox']
                     radius = max(bounding_box[0], bounding_box[1]) / 2.0
                     height = bounding_box[2]
@@ -1003,7 +1014,8 @@ class Converter():
                 for idx in range(start, end, 4)
             ]
             num_frames = time_acc['count']
-            fps = num_frames / time_data[-1]
+            end_time = time_data[-1]
+            fps = num_frames / time_data[-1] if end_time != 0 else 24
 
             bundle_name = anim_name
             bundle = AnimBundle(bundle_name, fps, num_frames)
@@ -1473,7 +1485,7 @@ class Converter():
 
     def load_physics_bullet(self, node_name, geomnode, shape_type, bounding_box, radius, height, gltf_rigidbody):
         shape = None
-        static = 'static' in gltf_rigidbody and gltf_rigidbody['static']
+        static = gltf_rigidbody is not None and 'static' in gltf_rigidbody and gltf_rigidbody['static']
 
         if shape_type == 'BOX':
             shape = bullet.BulletBoxShape(LVector3(*bounding_box) / 2.0)
@@ -1498,7 +1510,7 @@ class Converter():
                     mesh.add_geom(geom)
                 shape = bullet.BulletTriangleMeshShape(mesh, dynamic=not static)
         else:
-            print("Unknown collision shape ({}) for object ({})".format(shape_type, nodeid))
+            print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
 
         if shape is not None:
             if gltf_rigidbody.get('intangible'):
@@ -1507,10 +1519,11 @@ class Converter():
                 phynode = bullet.BulletRigidBodyNode(node_name)
             phynode.add_shape(shape)
             if not static:
-                phynode.set_mass(gltf_rigidbody['mass'])
+                mass = 1.0 if gltf_rigidbody is None else gltf_rigidbody.get('mass', 1.0)
+                phynode.set_mass(mass)
             return phynode
         else:
-            print("Could not create collision shape for object ({})".format(nodeid))
+            print("Could not create collision shape for object ({})".format(node_name))
 
     def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, _gltf_rigidbody):
         phynode = CollisionNode(node_name)
@@ -1566,7 +1579,7 @@ class Converter():
         if phynode.solids:
             return phynode
         else:
-            print("Could not create collision shape for object ({})".format(nodeid))
+            print("Could not create collision shape for object ({})".format(node_name))
 
 
 def read_glb_chunk(glb_file):
