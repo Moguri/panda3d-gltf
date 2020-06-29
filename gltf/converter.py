@@ -787,15 +787,21 @@ class Converter():
                 uvs = uv_data.get_data2f()
                 uv_data.set_data2f(uvs[0], 1 - uvs[1])
 
-        # Flip morph deltas from Y-up to Z-up.  This is apparently not done by
-        # transform_vertices(), below, so we do it ourselves.
         if self.compose_cs == CS_yup_right:
+            # Flip morph deltas from Y-up to Z-up.  This is apparently not done by
+            # transform_vertices(), below, so we do it ourselves.
             for morph_i in range(reg_format.get_num_morphs()):
                 delta_data = GeomVertexRewriter(vdata, reg_format.get_morph_delta(morph_i))
 
                 while not delta_data.is_at_end():
                     data = delta_data.get_data3f()
                     delta_data.set_data3f(data[0], -data[2], data[1])
+            # Flip tangents from Y-up to Z-up.
+            if 'TANGENT' in mesh_attribs:
+                tangent = GeomVertexRewriter(vdata, InternalName.make('tangent'))
+                while not tangent.is_at_end():
+                    data = tangent.get_data4f()
+                    tangent.set_data4f(data[0], -data[2], data[1], data[3])
 
         # Repack mesh data
         vformat = GeomVertexFormat()
@@ -920,7 +926,7 @@ class Converter():
             if denom != 0.0:
                 fconst = 1.0 / denom
                 tangent = (edge1.xyz * duv2.y - edge2.xyz * duv1.y) * fconst
-                bitangent = (edge1.xyz * duv2.x - edge2.xyz * duv1.x) * fconst
+                bitangent = (edge2.xyz * duv1.x - edge1.xyz * duv2.x) * fconst
             else:
                 tangent = LVector3(0)
                 bitangent = LVector3(0)
@@ -940,7 +946,10 @@ class Converter():
                 tangent.z,
                 -1.0 if normal.cross(tan0).dot(tan1) < 0 else 1.0
             )
-            tangent_writer.set_data4(tangent4)
+            if self.compose_cs == CS_yup_right:
+                tangent_writer.set_data4(tangent4[0], -tangent4[2], tangent4[1], tangent4[3])
+            else:
+                tangent_writer.set_data4(tangent4)
 
         geom.set_vertex_data(gvd)
 
