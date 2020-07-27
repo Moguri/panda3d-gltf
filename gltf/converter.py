@@ -864,6 +864,10 @@ class Converter():
             end = start + index_acc['count'] * buffview.get('byteStride', 1) * prim.index_stride
             handle.copy_data_from(buff[start:end])
             handle = None
+        else:
+            index_acc = gltf_data['accessors'][gltf_primitive['attributes']["POSITION"]]
+            start = index_acc.get('byteOffset', 0)
+            prim.setNonindexedVertices(start, index_acc['count'])
 
         # Assign a material
         matid = gltf_primitive.get('material', None)
