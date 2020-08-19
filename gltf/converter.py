@@ -17,6 +17,13 @@ except ImportError:
     HAVE_BULLET = False
 from direct.stdpy.file import open # pylint: disable=redefined-builtin
 
+if LVector3 is LVector3f:
+    CPTA_stdfloat = CPTA_float
+    PTA_stdfloat = PTA_float
+else:
+    CPTA_stdfloat = CPTA_double
+    PTA_stdfloat = PTA_double
+
 load_prc_file_data(
     __file__,
     'interpolate-frames #t\n'
@@ -1334,17 +1341,17 @@ class Converter():
             scale_vals[2] = scale_vals[2][:1]
 
         # Write data to tables
-        group.set_table(b'x', CPTAFloat(PTAFloat(loc_vals[0])))
-        group.set_table(b'y', CPTAFloat(PTAFloat(loc_vals[1])))
-        group.set_table(b'z', CPTAFloat(PTAFloat(loc_vals[2])))
+        group.set_table(b'x', CPTA_stdfloat(PTA_stdfloat(loc_vals[0])))
+        group.set_table(b'y', CPTA_stdfloat(PTA_stdfloat(loc_vals[1])))
+        group.set_table(b'z', CPTA_stdfloat(PTA_stdfloat(loc_vals[2])))
 
-        group.set_table(b'h', CPTAFloat(PTAFloat(rot_vals[0])))
-        group.set_table(b'p', CPTAFloat(PTAFloat(rot_vals[1])))
-        group.set_table(b'r', CPTAFloat(PTAFloat(rot_vals[2])))
+        group.set_table(b'h', CPTA_stdfloat(PTA_stdfloat(rot_vals[0])))
+        group.set_table(b'p', CPTA_stdfloat(PTA_stdfloat(rot_vals[1])))
+        group.set_table(b'r', CPTA_stdfloat(PTA_stdfloat(rot_vals[2])))
 
-        group.set_table(b'i', CPTAFloat(PTAFloat(scale_vals[0])))
-        group.set_table(b'j', CPTAFloat(PTAFloat(scale_vals[1])))
-        group.set_table(b'k', CPTAFloat(PTAFloat(scale_vals[2])))
+        group.set_table(b'i', CPTA_stdfloat(PTA_stdfloat(scale_vals[0])))
+        group.set_table(b'j', CPTA_stdfloat(PTA_stdfloat(scale_vals[1])))
+        group.set_table(b'k', CPTA_stdfloat(PTA_stdfloat(scale_vals[2])))
 
         for childid in bone.get('children', []):
             self.build_animation_skeleton(character, group, childid, num_frames, gltf_anim, gltf_data)
