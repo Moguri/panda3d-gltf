@@ -1523,7 +1523,7 @@ class Converter():
 
         self.lights[lightid] = node
 
-    def load_physics_bullet(self, node_name, geomnode, shape_type, bounding_box, radius, height, intangible, gltf_rigidbody):
+    def load_physics_bullet(self, node_name, geomnode, shape_type, bounding_box, radius, height, intangible, gltf_rigidbody): # pylint: disable=line-too-long
         shape = None
         static = gltf_rigidbody is not None and 'static' in gltf_rigidbody and gltf_rigidbody['static']
 
