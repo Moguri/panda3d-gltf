@@ -104,6 +104,7 @@ class Converter():
         self.node_paths = {}
         self.scenes = {}
         self.skeletons = {}
+        self.joint_parents = {}
 
         # Coordinate system transform matrix
         self.csxform = LMatrix4.convert_mat(CS_yup_right, CS_default)
@@ -174,7 +175,9 @@ class Converter():
 
             node_name = gltf_node.get('name', 'node'+str(nodeid))
             if nodeid in self._joint_nodes:
-                # don't handle joints here
+                # Handle non-joint children of joints, but don't add joints themselves
+                for child_nodeid in gltf_node.get('children', []):
+                    add_node(root, gltf_scene, child_nodeid, jvtmap, cvsmap)
                 return
 
             jvtmap = dict(jvtmap)
@@ -363,6 +366,13 @@ class Converter():
                     tmp = geomnode.get_parent().attach_new_node(PandaNode('ReverseCulling'))
                     tmp.set_attrib(CullFaceAttrib.make_reverse())
                     geomnode.reparent_to(tmp)
+
+            # Handle parenting to joints
+            joint = self.joint_parents.get(nodeid)
+            if joint:
+                xformnp = root.attach_new_node(PandaNode('{}-parent'.format(node_name)))
+                np.reparent_to(xformnp)
+                joint.add_net_transform(xformnp.node())
 
         for sceneid, gltf_scene in enumerate(gltf_data.get('scenes', [])):
             scene_name = gltf_scene.get('name', 'scene'+str(sceneid))
@@ -1152,6 +1162,11 @@ class Converter():
         def create_joint(parent, nodeid, transform):
             node = gltf_data['nodes'][nodeid]
             node_name = node.get('name', 'bone'+str(nodeid))
+
+            if 'mesh' in node:
+                self.joint_parents[nodeid] = parent
+                return
+
             inv_transform = LMatrix4(transform)
             inv_transform.invert_in_place()
             joint_index = None
@@ -1356,6 +1371,9 @@ class Converter():
         group.set_table(b'k', CPTA_stdfloat(PTA_stdfloat(scale_vals[2])))
 
         for childid in bone.get('children', []):
+            gltf_node = gltf_data['nodes'][childid]
+            if 'mesh' in gltf_node:
+                continue
             self.build_animation_skeleton(character, group, childid, num_frames, gltf_anim, gltf_data)
 
     def build_animation_morph(self, parent, nodeid, num_frames, gltf_anim, gltf_data, recurse=True):
