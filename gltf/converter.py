@@ -911,13 +911,19 @@ class Converter():
                 "Warning: mesh {} has a primitive with no material, using an empty RenderState"
                 .format(geom_node.name)
             )
-            mat = RenderState.make_empty()
+            pmat = Material('fallback material')
+            matattrib = MaterialAttrib.make(pmat)
+            texattrib = TextureAttrib.make(self.textures.get('__pbr-fallback'))
+            mat = RenderState.make(matattrib, texattrib)
         elif matid not in self.mat_states:
             print(
                 "Warning: material with name {} has no associated mat state, using an empty RenderState"
                 .format(matid)
             )
-            mat = RenderState.make_empty()
+            pmat = Material('fallback material')
+            matattrib = MaterialAttrib.make(pmat)
+            texattrib = TextureAttrib.make(self.textures.get('__pbr-fallback'))
+            mat = RenderState.make(matattrib, texattrib)
         else:
             mat = self.mat_states[gltf_primitive['material']]
             self.mat_mesh_map[gltf_primitive['material']].append((geom_node.name, primitiveid))
