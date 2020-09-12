@@ -56,6 +56,12 @@ def main():
         help='control what to do with external textures (embedded textures will remain embedded)'
     )
 
+    parser.add_argument(
+        '--legacy-materials',
+        action='store_true',
+        help='convert imported PBR materials to legacy materials'
+    )
+
     args = parser.parse_args()
 
     settings = gltf.GltfSettings(
@@ -64,6 +70,7 @@ def main():
         skip_axis_conversion=args.skip_axis_conversion,
         no_srgb=args.no_srgb,
         textures=args.textures,
+        legacy_materials=args.legacy_materials,
     )
 
     gltf.converter.convert(args.src, args.dst, settings)

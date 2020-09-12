@@ -35,6 +35,7 @@ GltfSettings = collections.namedtuple('GltfSettings', (
     'skip_axis_conversion',
     'no_srgb',
     'textures',
+    'legacy_materials',
 ))
 GltfSettings.__new__.__defaults__ = (
     'builtin', # physics engine
@@ -42,6 +43,7 @@ GltfSettings.__new__.__defaults__ = (
     False, # skip_axis_conversion
     False, # do not load textures as sRGB
     'ref', # reference external textures
+    False, # use PBR materials
 )
 
 
@@ -579,54 +581,67 @@ class Converter():
         normal_fallback = {'index': '__normal-fallback', 'texCoord': 0}
         texinfos = []
 
-        if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
-            matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
-            pmat.set_shininess(matsettings['shininessFactor'])
-            pmat.set_ambient(LColor(*matsettings['ambientFactor']))
+        if self.settings.legacy_materials:
+            if 'pbrMetallicRoughness' in gltf_mat:
+                pbrsettings = gltf_mat['pbrMetallicRoughness']
 
-            if 'diffuseTexture' in matsettings:
-                texinfo = matsettings['diffuseTexture']
-                texinfos.append(texinfo)
-                if matsettings['diffuseTextureSrgb'] and texinfo['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texinfo['index']])
-            else:
-                pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
+                pmat.set_diffuse(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
+                texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+                if texinfos[-1]['index'] in self.textures:
+                    self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
-            if 'emissionTexture' in matsettings:
-                texinfo = matsettings['emissionTexture']
-                texinfos.append(texinfo)
-                if matsettings['emissionTextureSrgb'] and texinfo['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texinfo['index']])
-            else:
-                pmat.set_emission(LColor(*matsettings['emissionFactor']))
+            texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
+            texinfos[-1]['mode'] = TextureStage.M_normal
+        else:
+            if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
+                matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
+                pmat.set_shininess(matsettings['shininessFactor'])
+                pmat.set_ambient(LColor(*matsettings['ambientFactor']))
 
-            if 'specularTexture' in matsettings:
-                texinfo = matsettings['specularTexture']
-                texinfos.append(texinfo)
-                if matsettings['specularTextureSrgb'] and texinfo['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texinfo['index']])
-            else:
-                pmat.set_specular(LColor(*matsettings['specularFactor']))
-        elif 'pbrMetallicRoughness' in gltf_mat:
-            pbrsettings = gltf_mat['pbrMetallicRoughness']
+                if 'diffuseTexture' in matsettings:
+                    texinfo = matsettings['diffuseTexture']
+                    texinfos.append(texinfo)
+                    if matsettings['diffuseTextureSrgb'] and texinfo['index'] in self.textures:
+                        self.make_texture_srgb(self.textures[texinfo['index']])
+                else:
+                    pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
 
-            pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-            texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+                if 'emissionTexture' in matsettings:
+                    texinfo = matsettings['emissionTexture']
+                    texinfos.append(texinfo)
+                    if matsettings['emissionTextureSrgb'] and texinfo['index'] in self.textures:
+                        self.make_texture_srgb(self.textures[texinfo['index']])
+                else:
+                    pmat.set_emission(LColor(*matsettings['emissionFactor']))
+
+                if 'specularTexture' in matsettings:
+                    texinfo = matsettings['specularTexture']
+                    texinfos.append(texinfo)
+                    if matsettings['specularTextureSrgb'] and texinfo['index'] in self.textures:
+                        self.make_texture_srgb(self.textures[texinfo['index']])
+                else:
+                    pmat.set_specular(LColor(*matsettings['specularFactor']))
+            elif 'pbrMetallicRoughness' in gltf_mat:
+                pbrsettings = gltf_mat['pbrMetallicRoughness']
+
+                pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
+                texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+                if texinfos[-1]['index'] in self.textures:
+                    self.make_texture_srgb(self.textures[texinfos[-1]['index']])
+
+                pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
+                pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
+                texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
+
+            # Normal map
+            texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
+            texinfos[-1]['mode'] = TextureStage.M_normal
+
+            # Emission map
+            pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
+            texinfos.append(gltf_mat.get('emissiveTexture', emission_fallback))
             if texinfos[-1]['index'] in self.textures:
                 self.make_texture_srgb(self.textures[texinfos[-1]['index']])
-
-            pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
-            pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
-            texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
-
-        # Normal map
-        texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
-
-        #Emission map
-        pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
-        texinfos.append(gltf_mat.get('emissiveTexture', emission_fallback))
-        if texinfos[-1]['index'] in self.textures:
-            self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
         pmat.set_twoside(gltf_mat.get('doubleSided', False))
 
@@ -643,6 +658,7 @@ class Converter():
             texstage = TextureStage(str(i))
             texstage.set_sort(i)
             texstage.set_texcoord_name(InternalName.get_texcoord_name(str(texinfo.get('texCoord', 0))))
+            texstage.set_mode(texinfo.get('mode', TextureStage.M_modulate))
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
         state = state.set_attrib(tex_attrib)
