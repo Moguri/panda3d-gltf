@@ -241,11 +241,6 @@ class Converter():
                     if cvsmap:
                         self.combine_mesh_morphs(mesh, meshid, cvsmap)
 
-            if 'skin' in gltf_node and not 'mesh' in gltf_node:
-                print(
-                    "Warning: node {} has a skin but no mesh"
-                    .format(primitiveid)
-                )
             if 'camera' in gltf_node:
                 camid = gltf_node['camera']
                 cam = self.cameras[camid]

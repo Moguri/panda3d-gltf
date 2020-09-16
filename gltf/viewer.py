@@ -49,7 +49,10 @@ class App(ShowBase):
 
         bounds = self.model_root.getBounds()
         center = bounds.get_center()
-        radius = bounds.get_radius()
+        if bounds.is_empty():
+            radius = 1
+        else:
+            radius = bounds.get_radius()
 
         fov = self.camLens.get_fov()
         distance = radius / math.tan(math.radians(min(fov[0], fov[1]) / 2.0))
