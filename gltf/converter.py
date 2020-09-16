@@ -57,6 +57,15 @@ class Converter():
         5125: GeomEnums.NT_uint32,
         5126: GeomEnums.NT_float32,
     }
+    _COMPONENT_SIZE_MAP = {
+        5120: 1,
+        5121: 1,
+        5122: 2,
+        5123: 2,
+        5124: 4,
+        5125: 4,
+        5126: 4,
+    }
     _COMPONENT_NUM_MAP = {
         'MAT4': 16,
         'VEC4': 4,
@@ -771,6 +780,7 @@ class Converter():
                     internal_name = InternalName.make(attrib_name)
                 num_components = self._COMPONENT_NUM_MAP[acc['type']]
                 numeric_type = self._COMPONENT_TYPE_MAP[acc['componentType']]
+                numeric_size = self._COMPONENT_SIZE_MAP[acc['componentType']]
                 content = self._ATTRIB_CONTENT_MAP.get(attrib_name, GeomEnums.C_other)
 
                 if '_target' in acc:
@@ -788,7 +798,7 @@ class Converter():
                         buffview['buffer'],
                         acc.get('byteOffset', 0) + buffview.get('byteOffset', 0),
                         acc['count'],
-                        buffview.get('byteStride', 4 * num_components)
+                        buffview.get('byteStride', numeric_size * num_components)
                     ))
 
             if is_interleaved:
