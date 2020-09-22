@@ -643,9 +643,13 @@ class Converter():
             if texinfos[-1]['index'] in self.textures:
                 self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
-        pmat.set_twoside(gltf_mat.get('doubleSided', False))
+        double_sided = gltf_mat.get('doubleSided', False)
+        pmat.set_twoside(double_sided)
 
         state = state.set_attrib(MaterialAttrib.make(pmat))
+
+        if double_sided:
+            state = state.set_attrib(CullFaceAttrib.make(CullFaceAttrib.MCullNone))
 
         # Setup textures
         tex_attrib = TextureAttrib.make()
