@@ -632,6 +632,7 @@ class Converter():
                 pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
                 pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
                 texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
+                texinfos[-1]['mode'] = TextureStage.M_selector # Unused, but means FFP and auto shader will ignore
 
             # Normal map
             texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
@@ -640,6 +641,7 @@ class Converter():
             # Emission map
             pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
             texinfos.append(gltf_mat.get('emissiveTexture', emission_fallback))
+            texinfos[-1]['mode'] = TextureStage.M_add
             if texinfos[-1]['index'] in self.textures:
                 self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
