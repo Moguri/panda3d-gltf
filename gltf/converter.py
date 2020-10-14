@@ -36,6 +36,7 @@ GltfSettings = collections.namedtuple('GltfSettings', (
     'no_srgb',
     'textures',
     'legacy_materials',
+    'animations',
 ))
 GltfSettings.__new__.__defaults__ = (
     'builtin', # physics engine
@@ -44,6 +45,7 @@ GltfSettings.__new__.__defaults__ = (
     False, # do not load textures as sRGB
     'ref', # reference external textures
     False, # use PBR materials
+    'embed', # keep animations in the same BAM file
 )
 
 
@@ -1054,11 +1056,14 @@ class Converter():
 
         # Find animations that affect the collected nodes.
         #print("Looking for actions for", skinname, node_ids)
-        anims = [
-            (animid, anim)
-            for animid, anim in enumerate(gltf_data.get('animations', []))
-            if affected_nodeids & {chan['target']['node'] for chan in anim['channels']}
-        ]
+        if self.settings.animations != 'skip':
+            anims = [
+                (animid, anim)
+                for animid, anim in enumerate(gltf_data.get('animations', []))
+                if affected_nodeids & {chan['target']['node'] for chan in anim['channels']}
+            ]
+        else:
+            anims = []
 
         for animid, gltf_anim in anims:
             anim_name = gltf_anim.get('name', 'anim'+str(animid))
@@ -1711,6 +1716,13 @@ def convert(src, dst, settings=None):
     if settings.print_scene:
         converter.active_scene.ls()
 
+    if settings.animations == 'separate':
+        for bundlenode in converter.active_scene.find_all_matches('**/+AnimBundleNode'):
+            anim_name = bundlenode.node().bundle.name
+            anim_dst = dst.get_fullpath_wo_extension() \
+                + f'_{anim_name}.' \
+                + dst.get_extension()
+            bundlenode.write_bam_file(anim_dst)
     converter.active_scene.write_bam_file(dst)
 
 

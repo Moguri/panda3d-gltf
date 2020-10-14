@@ -62,6 +62,17 @@ def main():
         help='convert imported PBR materials to legacy materials'
     )
 
+    parser.add_argument(
+        '--animations',
+        choices=[
+            'embed',
+            'separate',
+            'skip',
+        ],
+        default='embed',
+        help='control what to do with animation data'
+    )
+
     args = parser.parse_args()
 
     settings = gltf.GltfSettings(
@@ -71,6 +82,7 @@ def main():
         no_srgb=args.no_srgb,
         textures=args.textures,
         legacy_materials=args.legacy_materials,
+        animations=args.animations
     )
 
     gltf.converter.convert(args.src, args.dst, settings)
