@@ -466,8 +466,8 @@ class Converter():
         self.textures['__pbr-fallback'] = texture
 
         texture = Texture('emission-fallback')
-        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgba)
-        texture.set_clear_color(LColor(0, 0, 0, 0))
+        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_luminance)
+        texture.set_clear_color(LColor(0, 0, 0, 1))
 
         self.textures['__emission-fallback'] = texture
 
