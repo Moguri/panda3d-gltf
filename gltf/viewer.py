@@ -72,7 +72,7 @@ class App(ShowBase):
         # Move lights to render
         self.model_root.clear_light()
         for light in self.model_root.find_all_matches('**/+Light'):
-            light.parent.reparent_to(self.render)
+            light.parent.wrt_reparent_to(self.render)
             self.render.set_light(light)
 
         # Add some ambient light
