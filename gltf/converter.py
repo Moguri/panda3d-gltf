@@ -273,7 +273,8 @@ class Converter():
                     if copy_lights:
                         light = light.make_copy()
                     lnp = np.attach_new_node(light)
-                    lnp.set_p(lnp.get_p() - 90)
+                    if self.compose_cs == CS_zup_right:
+                        lnp.set_p(lnp.get_p() - 90)
                     lnp.set_r(lnp.get_r() - 90)
                     if isinstance(light, Light):
                         root.set_light(lnp)
