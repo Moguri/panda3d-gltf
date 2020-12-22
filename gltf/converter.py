@@ -686,15 +686,19 @@ class Converter():
                 mat = Mat3()
                 scale = transform_ext.get('scale')
                 if scale:
-                    mat = mat * (Mat3.translate_mat(0, -1) * Mat3.scale_mat(scale[0], scale[1]) * Mat3.translate_mat(0, 1))
+                    mat *= (Mat3.translate_mat(0, -1) *
+                            Mat3.scale_mat(scale[0], scale[1]) *
+                            Mat3.translate_mat(0, 1))
 
                 rot = transform_ext.get('rotation')
                 if rot:
-                    mat = mat * (Mat3.translate_mat(0, -1) * Mat3.rotate_mat(math.degrees(rot)) * Mat3.translate_mat(0, 1))
+                    mat *= (Mat3.translate_mat(0, -1) *
+                            Mat3.rotate_mat(math.degrees(rot)) *
+                            Mat3.translate_mat(0, 1))
 
                 offset = transform_ext.get('offset', [0, 0])
                 if offset:
-                    mat = mat * Mat3.translate_mat(offset[0], -offset[1])
+                    mat *= Mat3.translate_mat(offset[0], -offset[1])
 
                 transform = TransformState.make_mat3(mat)
                 if not tex_mat_attrib:
