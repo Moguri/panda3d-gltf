@@ -662,6 +662,7 @@ class Converter():
 
         # Setup textures
         tex_attrib = TextureAttrib.make()
+        tex_mat_attrib = None
         for i, texinfo in enumerate(texinfos):
             texdata = self.textures.get(texinfo['index'], None)
             if texdata is None:
@@ -674,7 +675,36 @@ class Converter():
             texstage.set_mode(texinfo.get('mode', TextureStage.M_modulate))
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
+            transform_ext = texinfo.get('extensions', {}).get('KHR_texture_transform')
+            if transform_ext:
+                if 'texCoord' in transform_ext:
+                    # This overrides, if present.
+                    texstage.set_texcoord_name(InternalName.get_texcoord_name(str(transform_ext['texCoord'])))
+
+                # glTF uses a transform origin of the upper-left corner of the
+                # texture, whereas Panda uses the lower-left corner.
+                mat = Mat3()
+                scale = transform_ext.get('scale')
+                if scale:
+                    mat = mat * (Mat3.translate_mat(0, -1) * Mat3.scale_mat(scale[0], scale[1]) * Mat3.translate_mat(0, 1))
+
+                rot = transform_ext.get('rotation')
+                if rot:
+                    mat = mat * (Mat3.translate_mat(0, -1) * Mat3.rotate_mat(math.degrees(rot)) * Mat3.translate_mat(0, 1))
+
+                offset = transform_ext.get('offset', [0, 0])
+                if offset:
+                    mat = mat * Mat3.translate_mat(offset[0], -offset[1])
+
+                transform = TransformState.make_mat3(mat)
+                if not tex_mat_attrib:
+                    tex_mat_attrib = TexMatrixAttrib.make(texstage, transform)
+                else:
+                    tex_mat_attrib = tex_mat_attrib.add_stage(texstage, transform)
+
         state = state.set_attrib(tex_attrib)
+        if tex_mat_attrib:
+            state = state.set_attrib(tex_mat_attrib)
 
         # Setup Alpha mode
         alpha_mode = gltf_mat.get('alphaMode', 'OPAQUE')
