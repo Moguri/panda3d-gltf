@@ -799,6 +799,7 @@ class Converter():
         accessors = sorted(accessors, key=lambda x: x['bufferView'])
         data_copies = []
         is_skinned = 'JOINTS_0' in mesh_attribs
+        calc_normals = not 'NORMAL' in mesh_attribs
         calc_tangents = not 'TANGENT' in mesh_attribs
 
         for buffview, accs in itertools.groupby(accessors, key=lambda x: x['bufferView']):
@@ -983,10 +984,42 @@ class Converter():
         #print(ss.data.decode('utf8'))
         geom = Geom(vdata)
         geom.add_primitive(prim)
+        if calc_normals:
+            self.calculate_normals(geom)
         if calc_tangents:
             self.calculate_tangents(geom)
         geom.transform_vertices(self.csxform)
         geom_node.add_geom(geom, mat)
+
+    def calculate_normals(self, geom):
+        # Generate flat normals, as required by the glTF spec.
+        if geom.get_primitive_type() != GeomEnums.PT_polygons:
+            return
+
+        # We need to deindex the primitive since each occurrence of a vertex on
+        # a triangle could have a different normal vector.
+        geom.decompose_in_place()
+        geom.make_nonindexed(False)
+
+        gvd = geom.get_vertex_data()
+        gvd = gvd.replace_column(InternalName.get_normal(), 3, GeomEnums.NT_float32, GeomEnums.C_normal)
+        vertex_reader = GeomVertexReader(gvd, 'vertex')
+        normal_writer = GeomVertexWriter(gvd, 'normal')
+
+        read_vertex = vertex_reader.get_data3
+        write_normal = normal_writer.set_data3
+
+        while not vertex_reader.is_at_end():
+            vtx1 = read_vertex()
+            vtx2 = read_vertex()
+            vtx3 = read_vertex()
+            normal = (vtx2 - vtx1).cross(vtx3 - vtx1)
+            normal.normalize()
+            write_normal(normal)
+            write_normal(normal)
+            write_normal(normal)
+
+        geom.set_vertex_data(gvd)
 
     def calculate_tangents(self, geom):
         # Adapted from https://www.marti.works/calculating-tangents-for-your-mesh/
