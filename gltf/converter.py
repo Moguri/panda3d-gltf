@@ -1562,10 +1562,6 @@ class Converter():
 
         # Update the light
         if punctual:
-            coneangle = math.pi / 4
-            if 'spot' in gltf_light and 'outerConeAngle' in gltf_light['spot']:
-                coneangle = gltf_light['spot']['outerConeAngle']
-
             # For PBR, attention should always be (1, 0, 1)
             if hasattr(node, 'attenuation'):
                 node.attenuation = LVector3(1, 0, 1)
@@ -1575,8 +1571,20 @@ class Converter():
             if 'range' in gltf_light:
                 node.max_distance = gltf_light['range']
             if ltype == 'spot':
-                fov = math.degrees(coneangle) * 2
+                spot = gltf_light.get('spot', {})
+                inner = spot.get('innerConeAngle', 0)
+                outer = spot.get('outerConeAngle', math.pi / 4)
+                fov = math.degrees(outer) * 2
                 node.get_lens().set_fov(fov, fov)
+
+                if inner >= outer:
+                    node.exponent = 0
+                else:
+                    # The value of exp was chosen empirically to give a smooth
+                    # cutoff without straying too far from the spec; higher
+                    # exponents will have a smoother cutoff but sharper falloff.
+                    exp = 8 / 3
+                    node.exponent = 2 * (math.pi * 0.5 / outer) ** exp
         else:
             if ltype == 'unsupported':
                 lightprops = {}
