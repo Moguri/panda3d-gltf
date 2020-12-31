@@ -649,16 +649,9 @@ class Converter():
             texinfos[-1]['mode'] = TextureStage.M_normal
 
             # Emission map
-            factor = gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0])
-            pmat.set_emission(LColor(*factor, w=0.0))
-            if 'emissiveTexture' in gltf_mat:
-                texinfos.append(gltf_mat['emissiveTexture'])
-                texinfos[-1]['mode'] = TextureStage.M_add
-            else:
-                # The fallback texture is all-white, so set it to "modulate" to
-                # make sure the model isn't affected by it without simplepbr.
-                texinfos.append(emission_fallback)
-                texinfos[-1]['mode'] = TextureStage.M_modulate
+            pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
+            texinfos.append(gltf_mat.get('emissiveTexture', emission_fallback))
+            texinfos[-1]['mode'] = TextureStage.M_emission
             if texinfos[-1]['index'] in self.textures:
                 self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
