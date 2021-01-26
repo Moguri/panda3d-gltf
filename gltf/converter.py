@@ -342,7 +342,9 @@ class Converter():
                             intangible
                         )
                     if phynode is not None:
-                        np.attach_new_node(phynode)
+                        phynp = np.attach_new_node(phynode)
+                        for geomnode in np.find_all_matches('+GeomNode'):
+                            geomnode.reparent_to(phynp)
             if 'extras' in gltf_node:
                 for key, value in gltf_node['extras'].items():
                     np.set_tag(key, str(value))
