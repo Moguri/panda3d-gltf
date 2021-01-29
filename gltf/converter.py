@@ -1718,19 +1718,76 @@ class Converter():
                         'MESH'
                     ))
             if geomnode:
-                verts = []
                 for geom in geomnode.get_geoms():
                     vdata = self.read_vert_data(geom.get_vertex_data(), InternalName.get_vertex())
+                    polygons = []
+                    triangle_map = {}
+
                     for prim in geom.primitives:
                         prim_tmp = prim.decompose()
-                        verts += [
-                            vdata[i].get_xyz() for i in
-                            prim_tmp.get_vertex_list()
-                        ]
 
-                polys = zip(*([iter(verts)] * 3))
-                for poly in polys:
-                    solids.append(CollisionPolygon(*poly))
+                        vertices = prim_tmp.get_vertex_list()
+                        for i in range(0, len(vertices), 3):
+                            pos0 = vdata[vertices[i]].xyz
+                            pos1 = vdata[vertices[i + 1]].xyz
+                            pos2 = vdata[vertices[i + 2]].xyz
+
+                            # Find adjacent triangles lying on the same plane.
+                            normal = (pos2 - pos0).cross(pos1 - pos0)
+                            if not normal.normalize():
+                                # Zero-area triangle.
+                                continue
+
+                            # Quantize the normal.
+                            normal = (int(normal[0] * 0x1000 + 0.5),
+                                      int(normal[1] * 0x1000 + 0.5),
+                                      int(normal[2] * 0x1000 + 0.5))
+
+                            key0 = (normal, pos1, pos0)
+                            key1 = (normal, pos2, pos1)
+                            key2 = (normal, pos0, pos2)
+                            if key0 in triangle_map:
+                                poly, pos3 = triangle_map[key0]
+                                quad = (pos0, pos3, pos1, pos2)
+                                if CollisionPolygon.verify_points(*quad) and \
+                                   not CollisionPolygon(*quad).is_concave():
+                                    poly[:] = quad
+                                    del triangle_map[key0]
+                                    del triangle_map[(normal, pos0, pos3)]
+                                    del triangle_map[(normal, pos3, pos1)]
+                                    continue
+
+                            if key1 in triangle_map:
+                                poly, pos3 = triangle_map[key1]
+                                quad = (pos1, pos3, pos2, pos0)
+                                if CollisionPolygon.verify_points(*quad) and \
+                                   not CollisionPolygon(*quad).is_concave():
+                                    poly[:] = quad
+                                    del triangle_map[key1]
+                                    del triangle_map[(normal, pos1, pos3)]
+                                    del triangle_map[(normal, pos3, pos2)]
+                                    continue
+
+                            if key2 in triangle_map:
+                                poly, pos3 = triangle_map[key2]
+                                quad = (pos2, pos3, pos0, pos1)
+                                if CollisionPolygon.verify_points(*quad) and \
+                                   not CollisionPolygon(*quad).is_concave():
+                                    poly[:] = quad
+                                    del triangle_map[key2]
+                                    del triangle_map[(normal, pos2, pos3)]
+                                    del triangle_map[(normal, pos3, pos0)]
+                                    continue
+
+                            if triangle_map.get((normal, pos0, pos1), (None, None))[1] != pos2:
+                                poly = [pos0, pos1, pos2]
+                                triangle_map[(normal, pos0, pos1)] = (poly, pos2)
+                                triangle_map[(normal, pos1, pos2)] = (poly, pos0)
+                                triangle_map[(normal, pos2, pos0)] = (poly, pos1)
+                                polygons.append(poly)
+
+                    solids.extend(CollisionPolygon(*poly) for poly in polygons)
+
         else:
             print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
 
