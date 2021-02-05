@@ -1538,7 +1538,7 @@ class Converter():
                     # We have too many frames.
                     target_weights = target_weights[:num_frames]
 
-                group.set_table(CPTAFloat(target_weights))
+                group.set_table(CPTA_stdfloat(target_weights))
 
         gltf_node = gltf_data['nodes'][nodeid]
 
