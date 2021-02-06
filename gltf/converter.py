@@ -814,7 +814,7 @@ class Converter():
         for buffview, accs in itertools.groupby(accessors, key=lambda x: x['bufferView']):
             buffview = gltf_data['bufferViews'][buffview]
             accs = sorted(accs, key=lambda x: x.get('byteOffset', 0))
-            is_interleaved = len(accs) > 1 and accs[1]['byteOffset'] < buffview['byteStride']
+            is_interleaved = len(accs) > 1 and accs[1].get('byteOffset', 0) < buffview['byteStride']
 
             varray = GeomVertexArrayFormat()
             for acc in accs:
@@ -852,7 +852,7 @@ class Converter():
                 vformat.add_array(varray)
                 data_copies.append((
                     buffview['buffer'],
-                    buffview['byteOffset'],
+                    buffview.get('byteOffset', 0),
                     accs[0]['count'],
                     buffview.get('byteStride', varray.get_stride())
                 ))
@@ -1154,7 +1154,7 @@ class Converter():
             time_acc_id = samplers[0]['input']
             time_acc = gltf_data['accessors'][time_acc_id]
             time_bv = gltf_data['bufferViews'][time_acc['bufferView']]
-            start = time_acc.get('byteOffset', 0) + time_bv['byteOffset']
+            start = time_acc.get('byteOffset', 0) + time_bv.get('byteOffset', 0)
             end = start + time_acc['count'] * 4
             time_data = [
                 struct.unpack_from('<f', self.buffers[time_bv['buffer']], idx)[0]
@@ -1263,7 +1263,7 @@ class Converter():
         bind_mats = []
         ibmacc = gltf_data['accessors'][gltf_skin['inverseBindMatrices']]
         ibmbv = gltf_data['bufferViews'][ibmacc['bufferView']]
-        start = ibmacc.get('byteOffset', 0) + ibmbv['byteOffset']
+        start = ibmacc.get('byteOffset', 0) + ibmbv.get('byteOffset', 0)
         end = start + ibmacc['count'] * 16 * 4
         ibmdata = self.buffers[ibmbv['buffer']][start:end]
 
@@ -1379,7 +1379,7 @@ class Converter():
 
             buff_view = gltf_data['bufferViews'][acc['bufferView']]
             buff_data = self.buffers[buff_view['buffer']]
-            start = acc.get('byteOffset', 0) + buff_view['byteOffset']
+            start = acc.get('byteOffset', 0) + buff_view.get('byteOffset', 0)
 
             if path == 'rotation':
                 end = start + acc['count'] * 4 * 4
@@ -1510,7 +1510,7 @@ class Converter():
                 acc = accessors[0]
                 buff_view = gltf_data['bufferViews'][acc['bufferView']]
                 buff_data = self.buffers[buff_view['buffer']]
-                start = acc.get('byteOffset', 0) + buff_view['byteOffset']
+                start = acc.get('byteOffset', 0) + buff_view.get('byteOffset', 0)
 
                 end = start + acc['count'] * 4
                 weights = list(CPTAFloat(buff_data[start:end]))
