@@ -810,6 +810,7 @@ class Converter():
         is_skinned = 'JOINTS_0' in mesh_attribs
         calc_normals = not 'NORMAL' in mesh_attribs
         calc_tangents = not 'TANGENT' in mesh_attribs
+        normalize_weights = False
 
         for buffview, accs in itertools.groupby(accessors, key=lambda x: x['bufferView']):
             buffview = gltf_data['bufferViews'][buffview]
@@ -836,6 +837,11 @@ class Converter():
 
                 # Add this accessor as a column to the current vertex array format
                 varray.add_column(internal_name, num_components, numeric_type, content)
+
+                # Check if the weights table is using float or integer component
+                # Weights normalization will only be performed on float weights.
+                if attrib_parts[0] == 'weights':
+                    normalize_weights = numeric_type == GeomEnums.NT_float32
 
                 if not is_interleaved:
                     # Start a new vertex array format
@@ -895,6 +901,18 @@ class Converter():
                 while not tangent.is_at_end():
                     data = tangent.get_data4f()
                     tangent.set_data4f(data[0], -data[2], data[1], data[3])
+
+        if normalize_weights:
+            # The linear sum of all the joint weights must be as close as possible to 1, if the weights are
+            # stored as float.
+            # Some malformed assets do not respect this, hence we are normalizing them here.
+            weights_data = GeomVertexRewriter(vdata, InternalName.get_transform_weight())
+            while not weights_data.is_at_end():
+                weights = weights_data.get_data4f()
+                max_weight = abs(weights[0]) + abs(weights[1]) + abs(weights[2]) + abs(weights[3])
+                if max_weight != 0.0:
+                    weights = weights / max_weight
+                weights_data.set_data4f(weights)
 
         # Repack mesh data
         vformat = GeomVertexFormat()
