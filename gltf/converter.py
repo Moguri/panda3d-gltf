@@ -81,8 +81,8 @@ class Converter():
         'tangent': GeomEnums.C_other,
         'texcoord': GeomEnums.C_texcoord,
         'color': GeomEnums.C_color,
-        'weights': GeomEnums.C_point,
-        'joints': GeomEnums.C_point,
+        'transform_weight': GeomEnums.C_other,
+        'transform_index': GeomEnums.C_index,
     }
     _ATTRIB_NAME_MAP = {
         'position': InternalName.get_vertex().get_name(),
