@@ -829,6 +829,7 @@ class Converter():
                 numeric_type = self._COMPONENT_TYPE_MAP[acc['componentType']]
                 numeric_size = self._COMPONENT_SIZE_MAP[acc['componentType']]
                 content = self._ATTRIB_CONTENT_MAP.get(attrib_name, GeomEnums.C_other)
+                size = numeric_size * num_components
 
                 if '_target' in acc:
                     internal_name = InternalName.get_morph(attrib_name, acc['_target'])
@@ -845,16 +846,19 @@ class Converter():
                         buffview['buffer'],
                         acc.get('byteOffset', 0) + buffview.get('byteOffset', 0),
                         acc['count'],
-                        buffview.get('byteStride', numeric_size * num_components)
+                        size,
+                        buffview.get('byteStride', size)
                     ))
 
             if is_interleaved:
                 vformat.add_array(varray)
+                stride = buffview.get('byteStride', varray.get_stride())
                 data_copies.append((
                     buffview['buffer'],
                     buffview.get('byteOffset', 0),
                     accs[0]['count'],
-                    buffview.get('byteStride', varray.get_stride())
+                    stride,
+                    stride,
                 ))
 
         # Copy data from buffers
@@ -862,13 +866,22 @@ class Converter():
         vdata = GeomVertexData(geom_node.name, reg_format, GeomEnums.UH_stream)
 
         for array_idx, data_info in enumerate(data_copies):
-            handle = vdata.modify_array(array_idx).modify_handle()
-            handle.unclean_set_num_rows(data_info[2])
+            buffid, start, count, size, stride = data_info
 
-            buff = self.buffers[data_info[0]]
-            start = data_info[1]
-            end = start + data_info[2] * data_info[3]
-            handle.copy_data_from(buff[start:end])
+            handle = vdata.modify_array(array_idx).modify_handle()
+            handle.unclean_set_num_rows(count)
+
+            buff = self.buffers[buffid]
+            end = start + count * stride
+            if stride == size:
+                handle.copy_data_from(buff[start:end])
+            else:
+                src = start
+                dest = 0
+                while src < end:
+                    handle.copy_subdata_from(dest, size, buff[src:src+size])
+                    dest += size
+                    src += stride
             handle = None
 
         # Flip UVs
