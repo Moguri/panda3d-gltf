@@ -423,7 +423,8 @@ class Converter():
             return
 
         uri = gltf_buffer['uri']
-        if uri.startswith('data:application/octet-stream;base64'):
+        if uri.startswith('data:application/octet-stream;base64') or \
+           uri.startswith('data:application/gltf-buffer;base64'):
             buff_data = gltf_buffer['uri'].split(',')[1]
             buff_data = base64.b64decode(buff_data)
         elif uri.endswith('.bin'):
