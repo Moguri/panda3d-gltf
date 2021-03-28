@@ -1356,8 +1356,19 @@ class Converter():
                 meshid = gltf_node['mesh']
                 gltf_mesh = gltf_data['meshes'][meshid]
                 weights = gltf_mesh.get('weights')
-                if weights:
+
+                has_morph = False
+                for gltf_primitive in gltf_mesh['primitives']:
+                    if gltf_primitive.get('targets'):
+                        has_morph = True
+                        break
+
+                if has_morph:
                     target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+
+                    if not weights:
+                        weights = [0] * len(target_names)
+
                     if len(target_names) < len(weights):
                         target_names += [str(i) for i in range(len(target_names), len(weights))]
 
