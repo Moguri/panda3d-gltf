@@ -599,6 +599,7 @@ class Converter():
                 texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
                 if texinfos[-1]['index'] in self.textures:
                     self.make_texture_srgb(self.textures[texinfos[-1]['index']])
+                texinfos[-1]['mode'] = TextureStage.M_modulate
 
             texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
             texinfos[-1]['mode'] = TextureStage.M_normal
@@ -613,6 +614,7 @@ class Converter():
                     texinfos.append(texinfo)
                     if matsettings['diffuseTextureSrgb'] and texinfo['index'] in self.textures:
                         self.make_texture_srgb(self.textures[texinfo['index']])
+                    texinfos[-1]['mode'] = TextureStage.M_modulate
                 else:
                     pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
 
@@ -621,6 +623,7 @@ class Converter():
                     texinfos.append(texinfo)
                     if matsettings['emissionTextureSrgb'] and texinfo['index'] in self.textures:
                         self.make_texture_srgb(self.textures[texinfo['index']])
+                    texinfos[-1]['mode'] = TextureStage.M_emission
                 else:
                     pmat.set_emission(LColor(*matsettings['emissionFactor']))
 
@@ -642,7 +645,7 @@ class Converter():
                 pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
                 pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
                 texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
-                texinfos[-1]['mode'] = TextureStage.M_selector # Unused, but means FFP and auto shader will ignore
+                texinfos[-1]['mode'] = TextureStage.M_selector
 
             # Normal map
             texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
