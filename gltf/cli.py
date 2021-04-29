@@ -1,7 +1,13 @@
 import argparse
 
+import sys
+
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
+
 import gltf.converter
-from gltf.version import __version__
 
 
 def main():
@@ -15,7 +21,7 @@ def main():
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s {}'.format(__version__)
+        version='%(prog)s {}'.format(metadata.version('panda3d-gltf'))
     )
 
     parser.add_argument(
