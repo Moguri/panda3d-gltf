@@ -74,9 +74,21 @@ Since `panda3d-gltf` has not reached a 1.0 release, its API should not be consid
 However, this mostly applies to internals, and effort will be put into keeping the `gltf2bam` API from breaking.
 `patch_loader()` will also be kept stable, but will eventually be phased out in favor of the Python file loader.
 
+## Development environment setup
+```bash
+pip install -e .
+pip install -q build
+```
+
 ## Running tests
 ```bash
-python setup.py test
+pip install pytest pytest-pylint
+pytest tests
+```
+
+## Building the backage
+```
+python -m build
 ```
 
 ## License
