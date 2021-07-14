@@ -586,7 +586,8 @@ class Converter():
             self.mat_mesh_map[matid] = []
 
         pmat = Material(matname)
-        pbr_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
+        base_color_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
+        metallic_roughness_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
         emission_fallback = {'index': '__emission-fallback', 'texCoord': 0}
         normal_fallback = {'index': '__normal-fallback', 'texCoord': 0}
         texinfos = []
@@ -596,7 +597,7 @@ class Converter():
                 pbrsettings = gltf_mat['pbrMetallicRoughness']
 
                 pmat.set_diffuse(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-                texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+                texinfos.append(pbrsettings.get('baseColorTexture', base_color_fallback))
                 if texinfos[-1]['index'] in self.textures:
                     self.make_texture_srgb(self.textures[texinfos[-1]['index']])
                 texinfos[-1]['mode'] = TextureStage.M_modulate
@@ -638,13 +639,13 @@ class Converter():
                 pbrsettings = gltf_mat['pbrMetallicRoughness']
 
                 pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-                texinfos.append(pbrsettings.get('baseColorTexture', pbr_fallback))
+                texinfos.append(pbrsettings.get('baseColorTexture', base_color_fallback))
                 if texinfos[-1]['index'] in self.textures:
                     self.make_texture_srgb(self.textures[texinfos[-1]['index']])
 
                 pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
                 pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
-                texinfos.append(pbrsettings.get('metallicRoughnessTexture', pbr_fallback))
+                texinfos.append(pbrsettings.get('metallicRoughnessTexture', metallic_roughness_fallback))
                 texinfos[-1]['mode'] = TextureStage.M_selector
 
             # Normal map
