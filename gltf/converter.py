@@ -222,7 +222,7 @@ class Converter():
 
             panda_node.set_transform(TransformState.make_mat(self.csxform_inv * gltf_mat * self.csxform))
 
-            np = self.node_paths.get(nodeid, (physics_parent or root).attach_new_node(panda_node))
+            np = self.node_paths.get(nodeid, root.attach_new_node(panda_node))
             self.node_paths[nodeid] = np
 
             if nodeid in self.skeletons:
@@ -331,7 +331,7 @@ class Converter():
                             height,
                             intangible,
                             gltf_rigidbody,
-                            physics_parent.node() if physics_parent else None,
+                            physics_parent,
                             panda_node.transform
                         )
                     else:
@@ -355,7 +355,7 @@ class Converter():
 
 
             for child_nodeid in gltf_node.get('children', []):
-                add_node(np, gltf_scene, child_nodeid, jvtmap, cvsmap, compound_physics)
+                add_node(compound_physics or np, gltf_scene, child_nodeid, jvtmap, cvsmap, compound_physics.node() if compound_physics is not None else None)
 
             # Handle visibility after children are loaded
             def visible_recursive(node, visible):
