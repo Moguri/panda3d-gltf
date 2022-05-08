@@ -10,7 +10,7 @@ import simplepbr
 import gltf
 
 p3d.load_prc_file_data(
-    __file__,
+    '',
     'window-size 1024 768\n'
     'texture-minfilter mipmap\n'
     'texture-anisotropic-degree 16\n'

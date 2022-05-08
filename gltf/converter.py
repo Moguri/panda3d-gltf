@@ -25,7 +25,7 @@ else:
     PTA_stdfloat = PTA_double
 
 load_prc_file_data(
-    __file__,
+    '',
     'interpolate-frames #t\n'
 )
 
