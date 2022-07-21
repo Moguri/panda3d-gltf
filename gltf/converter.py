@@ -9,6 +9,8 @@ import struct
 import tempfile
 import pprint # pylint: disable=unused-import
 
+from dataclasses import dataclass
+
 from panda3d.core import * # pylint: disable=wildcard-import
 try:
     from panda3d import bullet
@@ -29,24 +31,15 @@ load_prc_file_data(
     'interpolate-frames #t\n'
 )
 
-GltfSettings = collections.namedtuple('GltfSettings', (
-    'physics_engine',
-    'print_scene',
-    'skip_axis_conversion',
-    'no_srgb',
-    'textures',
-    'legacy_materials',
-    'animations',
-))
-GltfSettings.__new__.__defaults__ = (
-    'builtin', # physics engine
-    False, # print_scene
-    False, # skip_axis_conversion
-    False, # do not load textures as sRGB
-    'ref', # reference external textures
-    False, # use PBR materials
-    'embed', # keep animations in the same BAM file
-)
+@dataclass
+class GltfSettings:
+    physics_engine: str = 'builtin'
+    print_scene: bool = False
+    skip_axis_conversion: bool = False
+    no_srb: bool = False
+    textures: str = 'ref'
+    legacy_materials: bool = False
+    animations: str = 'embed'
 
 
 class Converter():
