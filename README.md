@@ -41,19 +41,6 @@ pip install git+https://github.com/Moguri/panda3d-gltf.git
 `panda3d-gltf` ships with a Python file loader (requires Panda3D 1.10.4+), which seamlessly adds glTF support to Panda3D's `Loader` classes.
 This *does not* add support to `pview`, which is a C++ application that does not support loading Python file loaders.
 Instead of `pview`, use the `gltf-viewer` that ships with `panda3d-gltf`.
-For those that need to support Panda3D 1.10.3 or lower, `panda3d-gltf` also supplies a `patch_loader()` function  to monkey-patch glTF support to `ShowBase.loader`:
-
-```python
-import gltf
-
-class App(ShowBase):
-    def __init__(self):
-        ...
-        gltf.patch_loader(self.loader)
-        ...
-```
-
-On Panda3D 1.10.4+, this function will leave `self.loader` alone in favor of relying on the Python file loader.
 
 ### Command Line
 
@@ -72,7 +59,6 @@ This is a simple viewer (like `pview`) to view glTF (or any other file format su
 
 Since `panda3d-gltf` has not reached a 1.0 release, its API should not be considered "stable."
 However, this mostly applies to internals, and effort will be put into keeping the `gltf2bam` API from breaking.
-`patch_loader()` will also be kept stable, but will eventually be phased out in favor of the Python file loader.
 
 ## Running tests
 ```bash
