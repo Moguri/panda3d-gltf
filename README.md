@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/Moguri/panda3d-gltf.svg?branch=master)](https://travis-ci.org/Moguri/panda3d-gltf)
+![Pipeline](https://github.com/Moguri/panda3d-gltf/workflows/Pipeline/badge.svg)
 [![](https://img.shields.io/pypi/pyversions/panda3d_gltf.svg)](https://pypi.org/project/panda3d-gltf/)
 [![Panda3D Versions](https://img.shields.io/badge/panda3d-1.10%2C%201.11-blue.svg)](https://www.panda3d.org/)
 [![](https://img.shields.io/github/license/Moguri/panda3d-gltf.svg)](https://choosealicense.com/licenses/bsd-3-clause/)
@@ -60,10 +60,32 @@ This is a simple viewer (like `pview`) to view glTF (or any other file format su
 Since `panda3d-gltf` has not reached a 1.0 release, its API should not be considered "stable."
 However, this mostly applies to internals, and effort will be put into keeping the `gltf2bam` API from breaking.
 
-## Running tests
+## Running Tests
+
+First install `blend2bam` in editable mode along with `test` extras:
+
 ```bash
-python setup.py test
+pip install -e .[test]
 ```
+
+Then run the test suite with `pytest`:
+
+```bash
+pytest
+```
+
+## Building Wheels
+
+Install `build`:
+
+```bash
+pip install --upgrade build
+```
+
+and run:
+
+```bash
+python -m build
 
 ## License
 [B3D 3-Clause](https://choosealicense.com/licenses/bsd-3-clause/)
