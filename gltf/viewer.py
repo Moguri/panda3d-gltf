@@ -27,8 +27,6 @@ class App(ShowBase):
 
         self.pipeline = simplepbr.init()
 
-        gltf.patch_loader(self.loader)
-
         infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
         p3d.get_model_path().prepend_directory(infile.get_dirname())
 
