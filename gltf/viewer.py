@@ -7,7 +7,6 @@ import panda3d.core as p3d
 
 import simplepbr
 
-import gltf
 
 p3d.load_prc_file_data(
     '',
