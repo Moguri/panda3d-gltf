@@ -9,7 +9,11 @@ import pytest #pylint:disable=wrong-import-order
 
 @pytest.fixture(scope='session')
 def showbase():
-    p3d.load_prc_file_data('', 'window-type none')
+    prcdata = (
+        'window-type none\n'
+        'audio-library-name null\n'
+    )
+    p3d.load_prc_file_data('', prcdata)
     base = ShowBase()
     return base
 
