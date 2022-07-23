@@ -36,7 +36,7 @@ class GltfSettings:
     physics_engine: str = 'builtin'
     print_scene: bool = False
     skip_axis_conversion: bool = False
-    no_srb: bool = False
+    no_srgb: bool = False
     textures: str = 'ref'
     legacy_materials: bool = False
     animations: str = 'embed'
