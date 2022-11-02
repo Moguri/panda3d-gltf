@@ -598,8 +598,9 @@ class Converter():
             texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
             texinfos[-1]['mode'] = TextureStage.M_normal
         else:
-            if 'extensions' in gltf_mat and 'BP_materials_legacy' in gltf_mat['extensions']:
-                matsettings = gltf_mat['extensions']['BP_materials_legacy']['bpLegacy']
+            mat_extensions = gltf_mat.get('extensions', {})
+            if 'BP_materials_legacy' in mat_extensions:
+                matsettings = mat_extensions['BP_materials_legacy']['bpLegacy']
                 pmat.set_shininess(matsettings['shininessFactor'])
                 pmat.set_ambient(LColor(*matsettings['ambientFactor']))
 
@@ -651,6 +652,10 @@ class Converter():
             texinfos[-1]['mode'] = TextureStage.M_emission
             if texinfos[-1]['index'] in self.textures:
                 self.make_texture_srgb(self.textures[texinfos[-1]['index']])
+
+            # Index of refraction
+            ior_ext = mat_extensions.get('KHR_materials_ior', {})
+            pmat.set_refractive_index(ior_ext.get('ior', 1.5))
 
         double_sided = gltf_mat.get('doubleSided', False)
         pmat.set_twoside(double_sided)
