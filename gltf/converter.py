@@ -1289,19 +1289,20 @@ class Converter():
         skeleton = PartGroup(bundle, "<skeleton>")
         jvtmap = {}
 
-        bind_mats = []
-        ibmacc = gltf_data['accessors'][gltf_skin['inverseBindMatrices']]
-        ibmbv = gltf_data['bufferViews'][ibmacc['bufferView']]
-        start = ibmacc.get('byteOffset', 0) + ibmbv.get('byteOffset', 0)
-        end = start + ibmacc['count'] * 16 * 4
-        ibmdata = self.buffers[ibmbv['buffer']][start:end]
+        bind_mats = {}
+        if 'inverseBindMatrices' in gltf_skin:
+            ibmacc = gltf_data['accessors'][gltf_skin['inverseBindMatrices']]
+            ibmbv = gltf_data['bufferViews'][ibmacc['bufferView']]
+            start = ibmacc.get('byteOffset', 0) + ibmbv.get('byteOffset', 0)
+            end = start + ibmacc['count'] * 16 * 4
+            ibmdata = self.buffers[ibmbv['buffer']][start:end]
 
-        for i in range(ibmacc['count']):
-            mat = struct.unpack_from('<{}'.format('f'*16), ibmdata, i * 16 * 4)
-            #print('loaded', mat)
-            mat = self.load_matrix(mat)
-            mat.invert_in_place()
-            bind_mats.append(mat)
+            for i in range(ibmacc['count']):
+                mat = struct.unpack_from('<{}'.format('f'*16), ibmdata, i * 16 * 4)
+                #print('loaded', mat)
+                mat = self.load_matrix(mat)
+                mat.invert_in_place()
+                bind_mats[i] = mat
 
         def create_joint(parent, nodeid, transform):
             node = gltf_data['nodes'][nodeid]
@@ -1317,7 +1318,7 @@ class Converter():
             joint_mat = LMatrix4.ident_mat()
             if nodeid in gltf_skin['joints']:
                 joint_index = gltf_skin['joints'].index(nodeid)
-                joint_mat = bind_mats[joint_index]
+                joint_mat = bind_mats.get(joint_index, LMatrix4.ident_mat())
                 self._joint_nodes.add(nodeid)
 
             # glTF uses an absolute bind pose, Panda wants it local
