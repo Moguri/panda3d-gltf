@@ -6,7 +6,8 @@ from gltf.version import __version__
 
 def main():
     parser = argparse.ArgumentParser(
-        description='CLI tool to convert glTF files to Panda3D BAM files'
+        description='CLI tool to convert glTF files to Panda3D BAM files',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     parser.add_argument('src', type=str, help='source file')
