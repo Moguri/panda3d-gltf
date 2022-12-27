@@ -1,12 +1,10 @@
 import base64
 import collections
 import itertools
-import json
 import os
 import math
 import shutil
 import struct
-import tempfile
 import pprint # pylint: disable=unused-import
 
 from dataclasses import dataclass
@@ -18,6 +16,8 @@ try:
 except ImportError:
     HAVE_BULLET = False
 from direct.stdpy.file import open # pylint: disable=redefined-builtin
+
+from .io import read_gltf_file
 
 if LVector3 is LVector3f:
     CPTA_stdfloat = CPTA_float
@@ -416,7 +416,9 @@ class Converter():
             return
 
         uri = gltf_buffer['uri']
-        if uri.startswith('data:application/octet-stream;base64') or \
+        if uri == '_glb_bin' and buffid == 0:
+            buff_data = gltf_buffer['_glb_bin']
+        elif uri.startswith('data:application/octet-stream;base64') or \
            uri.startswith('data:application/gltf-buffer;base64'):
             buff_data = gltf_buffer['uri'].split(',')[1]
             buff_data = base64.b64decode(buff_data)
@@ -1841,13 +1843,6 @@ class Converter():
             print("Could not create collision shape for object ({})".format(node_name))
 
 
-def read_glb_chunk(glb_file):
-    chunk_size, = struct.unpack('<I', glb_file.read(4))
-    chunk_type = glb_file.read(4)
-    chunk_data = glb_file.read(chunk_size)
-    return chunk_type, chunk_data
-
-
 def convert(src, dst, settings=None):
     if settings is None:
         settings = GltfSettings()
@@ -1866,33 +1861,8 @@ def convert(src, dst, settings=None):
 
     converter = Converter(indir=indir, outdir=outdir, settings=settings)
 
-    with open(src, 'rb') as glb_file:
-        if glb_file.read(4) == b'glTF':
-            version, = struct.unpack('<I', glb_file.read(4))
-            if version != 2:
-                raise RuntimeError("Only GLB version 2 is supported, file is version {0}".format(version))
-
-            length, = struct.unpack('<I', glb_file.read(4))
-
-            chunk_type, chunk_data = read_glb_chunk(glb_file)
-            assert chunk_type == b'JSON'
-            gltf_data = json.loads(chunk_data.decode('utf-8'))
-
-            if glb_file.tell() < length:
-                #if read_bytes % 4 != 0:
-                #    glb_file.read((4 - read_bytes) % 4)
-                chunk_type, chunk_data = read_glb_chunk(glb_file)
-                assert chunk_type == b'BIN\000'
-                converter.buffers[0] = chunk_data
-
-            converter.update(gltf_data, writing_bam=True)
-        else:
-            # Re-open as a text file.
-            glb_file.close()
-
-            with open(src) as gltf_file:
-                gltf_data = json.load(gltf_file)
-                converter.update(gltf_data, writing_bam=True)
+    gltf_data = read_gltf_file(src)
+    converter.update(gltf_data, writing_bam=True)
 
     if settings.print_scene:
         converter.active_scene.ls()
@@ -1907,17 +1877,20 @@ def convert(src, dst, settings=None):
     converter.active_scene.write_bam_file(dst)
 
 
-def load_model(loader, file_path, gltf_settings=None, **loader_kwargs):
+def load_model(file_path, gltf_settings=None):
     '''Load a glTF file from file_path and return a ModelRoot'''
+    if gltf_settings is None:
+        gltf_settings = GltfSettings()
 
-    with tempfile.NamedTemporaryFile(suffix='.bam') as bamfile:
-        try:
-            bamfilepath = Filename.from_os_specific(bamfile.name)
-            bamfilepath.make_true_case()
-            convert(file_path, bamfilepath, gltf_settings)
-            if hasattr(loader, 'load_sync'):
-                return loader.load_sync(bamfilepath, **loader_kwargs)
-            else:
-                return loader.load_model(bamfilepath, **loader_kwargs)
-        except:
-            raise RuntimeError("Failed to convert glTF file")
+    if not isinstance(file_path, Filename):
+        file_path = Filename.from_os_specific(file_path)
+
+    workdir = Filename(file_path.get_dirname())
+
+    get_model_path().prepend_directory(workdir)
+    converter = Converter(indir=workdir, outdir=workdir, settings=gltf_settings)
+
+    gltf_data = read_gltf_file(file_path)
+    converter.update(gltf_data)
+
+    return converter.active_scene.node()
