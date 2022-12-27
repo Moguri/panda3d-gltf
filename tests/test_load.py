@@ -1,5 +1,3 @@
-import os
-
 import panda3d.core as p3d
 from direct.showbase.ShowBase import ShowBase
 import pytest #pylint:disable=wrong-import-order
@@ -24,13 +22,8 @@ def showbase():
     return base
 
 @pytest.fixture
-def modelpath():
-    return p3d.Filename.from_os_specific(
-        os.path.join(
-            os.path.dirname(__file__),
-            'test.gltf'
-        )
-    )
+def modelpath(modelroot):
+    return p3d.Filename(modelroot, 'test.gltf')
 
 def test_load_single(showbase, modelpath):
     showbase.loader.load_model(modelpath)
