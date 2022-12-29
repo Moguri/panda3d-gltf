@@ -17,8 +17,6 @@ except ImportError:
     HAVE_BULLET = False
 from direct.stdpy.file import open # pylint: disable=redefined-builtin
 
-from .parseutils import parse_gltf_file
-
 if LVector3 is LVector3f:
     CPTA_stdfloat = CPTA_float
     PTA_stdfloat = PTA_float
@@ -1841,22 +1839,3 @@ class Converter():
             return phynode
         else:
             print("Could not create collision shape for object ({})".format(node_name))
-
-
-def load_model(file_path, gltf_settings=None):
-    '''Load a glTF file from file_path and return a ModelRoot'''
-    if gltf_settings is None:
-        gltf_settings = GltfSettings()
-
-    if not isinstance(file_path, Filename):
-        file_path = Filename.from_os_specific(file_path)
-
-    workdir = Filename(file_path.get_dirname())
-
-    get_model_path().prepend_directory(workdir)
-    converter = Converter(indir=workdir, outdir=workdir, settings=gltf_settings)
-
-    gltf_data = parse_gltf_file(file_path)
-    converter.update(gltf_data)
-
-    return converter.active_scene.node()
