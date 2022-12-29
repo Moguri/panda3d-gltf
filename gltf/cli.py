@@ -4,7 +4,7 @@ import panda3d.core as p3d
 
 import gltf.converter
 from gltf.version import __version__
-from gltf.io import read_gltf_file
+from gltf.parseutils import parse_gltf_file
 
 
 def main():
@@ -99,7 +99,7 @@ def main():
     p3d.get_model_path().prepend_directory(outdir)
 
     converter = Converter(indir=indir, outdir=outdir, settings=settings)
-    gltf_data = read_gltf_file(src)
+    gltf_data = parse_gltf_file(src)
     converter.update(gltf_data, writing_bam=True)
 
     if args.print_scene:

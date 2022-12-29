@@ -17,7 +17,7 @@ except ImportError:
     HAVE_BULLET = False
 from direct.stdpy.file import open # pylint: disable=redefined-builtin
 
-from .io import read_gltf_file
+from .parseutils import parse_gltf_file
 
 if LVector3 is LVector3f:
     CPTA_stdfloat = CPTA_float
@@ -1856,7 +1856,7 @@ def load_model(file_path, gltf_settings=None):
     get_model_path().prepend_directory(workdir)
     converter = Converter(indir=workdir, outdir=workdir, settings=gltf_settings)
 
-    gltf_data = read_gltf_file(file_path)
+    gltf_data = parse_gltf_file(file_path)
     converter.update(gltf_data)
 
     return converter.active_scene.node()

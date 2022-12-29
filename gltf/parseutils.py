@@ -10,7 +10,7 @@ def is_glb_file(filepath):
             return False
 
 
-def decode_glb(data):
+def parse_glb_data(data):
     def read_glb_chunk(glbfile):
         chunk_size, = struct.unpack('<I', glbfile.read(4))
         chunk_type = glbfile.read(4)
@@ -45,15 +45,18 @@ def decode_glb(data):
     return gltf_data
 
 
-
-def read_glb_file(filepath):
+def parse_glb_file(filepath):
     with open(filepath, 'rb') as glbfile:
-        return decode_glb(glbfile)
+        return parse_glb_data(glbfile)
 
 
-def read_gltf_file(filepath):
+def parse_gltf_data(data):
+    return json.load(data)
+
+
+def parse_gltf_file(filepath):
     if is_glb_file(filepath):
-        return read_glb_file(filepath)
-    else:
-        with open(filepath) as gltffile:
-            return json.load(gltffile)
+        return parse_glb_file(filepath)
+
+    with open(filepath) as gltffile:
+        return parse_gltf_data(gltffile)
