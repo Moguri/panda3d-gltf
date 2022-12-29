@@ -34,12 +34,11 @@ load_prc_file_data(
 @dataclass
 class GltfSettings:
     physics_engine: str = 'builtin'
-    print_scene: bool = False
     skip_axis_conversion: bool = False
     no_srgb: bool = False
     textures: str = 'ref'
     legacy_materials: bool = False
-    animations: str = 'embed'
+    skip_animations: bool = False
 
 
 class Converter():
@@ -1162,7 +1161,7 @@ class Converter():
 
         # Find animations that affect the collected nodes.
         #print("Looking for actions for", skinname, node_ids)
-        if self.settings.animations != 'skip':
+        if not self.settings.skip_animations:
             anims = [
                 (animid, anim)
                 for animid, anim in enumerate(gltf_data.get('animations', []))
@@ -1842,40 +1841,6 @@ class Converter():
             return phynode
         else:
             print("Could not create collision shape for object ({})".format(node_name))
-
-
-def convert(src, dst, settings=None):
-    if settings is None:
-        settings = GltfSettings()
-
-    if not isinstance(src, Filename):
-        src = Filename.from_os_specific(src)
-
-    if not isinstance(dst, Filename):
-        dst = Filename.from_os_specific(dst)
-
-    indir = Filename(src.get_dirname())
-    outdir = Filename(dst.get_dirname())
-
-    get_model_path().prepend_directory(indir)
-    get_model_path().prepend_directory(outdir)
-
-    converter = Converter(indir=indir, outdir=outdir, settings=settings)
-
-    gltf_data = read_gltf_file(src)
-    converter.update(gltf_data, writing_bam=True)
-
-    if settings.print_scene:
-        converter.active_scene.ls()
-
-    if settings.animations == 'separate':
-        for bundlenode in converter.active_scene.find_all_matches('**/+AnimBundleNode'):
-            anim_name = bundlenode.node().bundle.name
-            anim_dst = dst.get_fullpath_wo_extension() \
-                + f'_{anim_name}.' \
-                + dst.get_extension()
-            bundlenode.write_bam_file(anim_dst)
-    converter.active_scene.write_bam_file(dst)
 
 
 def load_model(file_path, gltf_settings=None):

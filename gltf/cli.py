@@ -1,7 +1,10 @@
 import argparse
 
+import panda3d.core as p3d
+
 import gltf.converter
 from gltf.version import __version__
+from gltf.io import read_gltf_file
 
 
 def main():
@@ -83,10 +86,33 @@ def main():
         no_srgb=args.no_srgb,
         textures=args.textures,
         legacy_materials=args.legacy_materials,
-        animations=args.animations
+        skip_animations=args.animations == 'skip',
     )
 
-    gltf.converter.convert(args.src, args.dst, settings)
+    src = p3d.Filename(args.src)
+    dst = p3d.Filename(args.dst)
+
+    indir = p3d.Filename(src.get_dirname())
+    outdir = p3d.Filename(dst.get_dirname())
+
+    p3d.get_model_path().prepend_directory(indir)
+    p3d.get_model_path().prepend_directory(outdir)
+
+    converter = Converter(indir=indir, outdir=outdir, settings=settings)
+    gltf_data = read_gltf_file(src)
+    converter.update(gltf_data, writing_bam=True)
+
+    if args.print_scene:
+        converter.active_scene.ls()
+
+    if args.animations == 'separate':
+        for bundlenode in converter.active_scene.find_all_matches('**/+AnimBundleNode'):
+            anim_name = bundlenode.node().bundle.name
+            anim_dst = dst.get_fullpath_wo_extension() \
+                + f'_{anim_name}.' \
+                + dst.get_extension()
+            bundlenode.write_bam_file(anim_dst)
+    converter.active_scene.write_bam_file(dst)
 
 
 if __name__ == '__main__':
