@@ -476,6 +476,7 @@ class Converter():
         source = gltf_data['images'][gltf_tex['source']]
         if 'uri' in source:
             uri = source['uri']
+            uridir = ''
             def write_tex_image(ext):
                 texname = 'tex{}.{}'.format(gltf_tex['source'], ext)
                 texdata = base64.b64decode(uri.split(',')[1])
@@ -485,17 +486,23 @@ class Converter():
                 return texfname
             if uri.startswith('data:image/png;base64'):
                 uri = write_tex_image('png')
+                uridir = self.outdir
             elif uri.startswith('data:image/jpeg;base64'):
                 uri = write_tex_image('jpeg')
+                uridir = self.outdir
             else:
                 uri = Filename.fromOsSpecific(uri)
+                uridir = self.indir
                 if self.settings.textures == 'copy':
+                    uridir = self.outdir
                     src = os.path.join(self.indir.to_os_specific(), uri)
                     dst = os.path.join(self.outdir.to_os_specific(), uri)
                     outdir = os.path.dirname(dst)
                     os.makedirs(outdir, exist_ok=True)
                     shutil.copy(src, dst)
-            texture = TexturePool.load_texture(uri, 0, False, LoaderOptions())
+            fulluri = Filename(uridir, uri)
+            texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
+            texture.filename = uri
         else:
             view = self.get_buffer_view(gltf_data, source['bufferView'])
             ext = source['mimeType'].split('/')[1]

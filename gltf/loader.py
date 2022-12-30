@@ -14,7 +14,6 @@ def load_model(file_path, gltf_settings=None):
 
     workdir = p3d.Filename(file_path.get_dirname())
 
-    p3d.get_model_path().prepend_directory(workdir)
     converter = Converter(indir=workdir, outdir=workdir, settings=gltf_settings)
 
     gltf_data = parse_gltf_file(file_path)
