@@ -100,7 +100,7 @@ def main():
 
     converter = Converter(indir=indir, outdir=outdir, settings=settings)
     gltf_data = parse_gltf_file(src)
-    converter.update(gltf_data, writing_bam=True)
+    converter.update(gltf_data)
 
     if args.print_scene:
         converter.active_scene.ls()

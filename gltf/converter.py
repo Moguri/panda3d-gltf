@@ -121,7 +121,7 @@ class Converter():
         self.background_color = (0, 0, 0)
         self.active_camera = None
 
-    def update(self, gltf_data, writing_bam=False):
+    def update(self, gltf_data):
         #pprint.pprint(gltf_data)
 
         skip_axis_conversion = (
@@ -163,10 +163,6 @@ class Converter():
 
         for meshid, gltf_mesh in enumerate(gltf_data.get('meshes', [])):
             self.load_mesh(meshid, gltf_mesh, gltf_data)
-
-        # If we support writing bam 6.40, we can safely write out
-        # instanced lights.  If not, we have to copy it.
-        copy_lights = writing_bam and not hasattr(BamWriter, 'root_node')
 
         # Build scenegraphs
         def add_node(root, gltf_scene, nodeid, jvtmap, cvsmap):
@@ -260,8 +256,6 @@ class Converter():
                 if has_light_ext:
                     lightid = gltf_node['extensions'][light_ext]['light']
                     light = self.lights[lightid]
-                    if copy_lights:
-                        light = light.make_copy()
                     lnp = np.attach_new_node(light)
                     if self.compose_cs == CS_zup_right:
                         lnp.set_p(lnp.get_p() - 90)
