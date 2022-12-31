@@ -23,10 +23,6 @@ else:
     CPTA_stdfloat = CPTA_double
     PTA_stdfloat = PTA_double
 
-load_prc_file_data(
-    '',
-    'interpolate-frames #t\n'
-)
 
 @dataclass
 class GltfSettings:
@@ -1139,6 +1135,9 @@ class Converter():
 
     def build_character(self, char, nodeid, jvtmap, cvsmap, gltf_data, recurse=True):
         affected_nodeids = set()
+
+        for bundle in char.bundles:
+            bundle.frame_blend_flag = True
 
         if nodeid in self.skeletons:
             skinid = self.skeletons[nodeid]
