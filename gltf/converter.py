@@ -3,7 +3,6 @@ import collections
 import itertools
 import os
 import math
-import shutil
 import struct
 import pprint # pylint: disable=unused-import
 
@@ -505,17 +504,9 @@ class Converter():
                 texture = load_embedded_image(name, ext, data)
             else:
                 uri = Filename.from_os_specific(uri)
-                uridir = self.indir
-                if self.settings.textures == 'copy':
-                    uridir = self.outdir
-                    src = os.path.join(self.indir.to_os_specific(), uri)
-                    dst = os.path.join(self.outdir.to_os_specific(), uri)
-                    outdir = os.path.dirname(dst)
-                    os.makedirs(outdir, exist_ok=True)
-                    shutil.copy(src, dst)
-                fulluri = Filename(uridir, uri)
+                fulluri = Filename(self.indir, uri)
                 texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
-                texture.filename = uri
+                texture.filename = texture.fullpath = uri
         else:
             name = source.get('name', '')
             ext = source['mimeType'].split('/')[1]

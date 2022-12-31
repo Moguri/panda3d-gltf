@@ -1,4 +1,6 @@
 import argparse
+import os
+import shutil
 
 import panda3d.core as p3d
 
@@ -98,8 +100,26 @@ def main():
     gltf_data = parse_gltf_file(src)
     converter.update(gltf_data)
 
+    os.makedirs(outdir, exist_ok=True)
+
     if args.print_scene:
         converter.active_scene.ls()
+
+    if args.textures == 'copy':
+        textures = [
+            texture
+            for scene in converter.scenes.values()
+            for texture in scene.find_all_textures()
+            if texture.filename
+        ]
+
+        for texture in textures:
+            fname = texture.filename
+            texsrc = os.path.join(indir.to_os_specific(), fname)
+            texdst = os.path.join(outdir.to_os_specific(), fname)
+
+            os.makedirs(os.path.dirname(texdst), exist_ok=True)
+            shutil.copy(texsrc, texdst)
 
     if args.animations == 'separate':
         for bundlenode in converter.active_scene.find_all_matches('**/+AnimBundleNode'):
