@@ -81,7 +81,6 @@ def main():
 
     settings = gltf.GltfSettings(
         physics_engine=args.physics_engine,
-        print_scene=args.print_scene,
         skip_axis_conversion=args.skip_axis_conversion,
         no_srgb=args.no_srgb,
         textures=args.textures,
@@ -95,7 +94,7 @@ def main():
     indir = p3d.Filename(src.get_dirname())
     outdir = p3d.Filename(dst.get_dirname())
 
-    converter = Converter(indir=indir, outdir=outdir, settings=settings)
+    converter = gltf.converter.Converter(indir=indir, outdir=outdir, settings=settings)
     gltf_data = parse_gltf_file(src)
     converter.update(gltf_data)
 
@@ -109,6 +108,7 @@ def main():
                 + f'_{anim_name}.' \
                 + dst.get_extension()
             bundlenode.write_bam_file(anim_dst)
+
     converter.active_scene.write_bam_file(dst)
 
 
