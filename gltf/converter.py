@@ -473,25 +473,38 @@ class Converter():
             print("Texture '{}' has no source, skipping".format(texid))
             return
 
+        def load_embedded_image(name, ext, data):
+            if not name:
+                name = f'gltf-embedded-{texid}'
+            img_type_registry = PNMFileTypeRegistry.get_global_ptr()
+            img_type = img_type_registry.get_type_from_extension(ext)
+
+            img = PNMImage()
+            img.read(StringStream(data), type=img_type)
+
+            texture = Texture(name)
+            texture.load(img)
+
+            return texture
+
         source = gltf_data['images'][gltf_tex['source']]
         if 'uri' in source:
             uri = source['uri']
-            uridir = ''
-            def write_tex_image(ext):
-                texname = 'tex{}.{}'.format(gltf_tex['source'], ext)
-                texdata = base64.b64decode(uri.split(',')[1])
-                texfname = os.path.join(self.outdir.to_os_specific(), texname)
-                with open(texfname, 'wb') as texfile:
-                    texfile.write(texdata)
-                return texfname
-            if uri.startswith('data:image/png;base64'):
-                uri = write_tex_image('png')
-                uridir = self.outdir
-            elif uri.startswith('data:image/jpeg;base64'):
-                uri = write_tex_image('jpeg')
-                uridir = self.outdir
+            if uri.startswith('data:'):
+                info, b64data = uri.split(',')
+
+                if not (info.startswith('data:image/') and info.endswith(';base64')):
+                    raise RuntimeError(
+                        f'Unknown data URI: {info}'
+                    )
+
+                name = source.get('name', '')
+                ext = info.replace('data:image/', '').replace(';base64', '')
+                data = base64.b64decode(b64data)
+
+                texture = load_embedded_image(name, ext, data)
             else:
-                uri = Filename.fromOsSpecific(uri)
+                uri = Filename.from_os_specific(uri)
                 uridir = self.indir
                 if self.settings.textures == 'copy':
                     uridir = self.outdir
@@ -500,17 +513,14 @@ class Converter():
                     outdir = os.path.dirname(dst)
                     os.makedirs(outdir, exist_ok=True)
                     shutil.copy(src, dst)
-            fulluri = Filename(uridir, uri)
-            texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
-            texture.filename = uri
+                fulluri = Filename(uridir, uri)
+                texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
+                texture.filename = uri
         else:
-            view = self.get_buffer_view(gltf_data, source['bufferView'])
+            name = source.get('name', '')
             ext = source['mimeType'].split('/')[1]
-            img_type = PNMFileTypeRegistry.get_global_ptr().get_type_from_extension(ext)
-            img = PNMImage()
-            img.read(StringStream(view), type=img_type)
-            texture = Texture(source.get('name', ''))
-            texture.load(img)
+            data = self.get_buffer_view(gltf_data, source['bufferView'])
+            texture = load_embedded_image(name, ext, data)
 
         if 'sampler' in gltf_tex:
             gltf_sampler = gltf_data['samplers'][gltf_tex['sampler']]
