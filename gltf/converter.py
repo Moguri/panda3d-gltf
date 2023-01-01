@@ -85,12 +85,15 @@ class Converter():
 
     def __init__(
             self,
-            indir=Filename.from_os_specific(os.getcwd()),
-            outdir=Filename.from_os_specific(os.getcwd()),
-            settings=GltfSettings()
+            filepath,
+            settings=None
     ):
-        self.indir = indir
-        self.outdir = outdir
+        if not isinstance(filepath, Filename):
+            filepath = Filename.from_os_specific(filepath)
+        if settings is None:
+            settings = GltfSettings()
+        self.filepath = filepath
+        self.filedir = Filename(filepath.get_dirname())
         self.settings = settings
         self.cameras = {}
         self.buffers = {}
@@ -409,7 +412,7 @@ class Converter():
             buff_data = gltf_buffer['uri'].split(',')[1]
             buff_data = base64.b64decode(buff_data)
         elif uri.endswith('.bin'):
-            buff_fname = os.path.join(self.indir.to_os_specific(), uri)
+            buff_fname = os.path.join(self.filedir.to_os_specific(), uri)
             with open(buff_fname, 'rb') as buff_file:
                 buff_data = buff_file.read(gltf_buffer['byteLength'])
         else:
@@ -500,7 +503,7 @@ class Converter():
                 texture = load_embedded_image(name, ext, data)
             else:
                 uri = Filename.from_os_specific(uri)
-                fulluri = Filename(self.indir, uri)
+                fulluri = Filename(self.filedir, uri)
                 texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
                 texture.filename = texture.fullpath = uri
         else:

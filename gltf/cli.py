@@ -96,7 +96,7 @@ def main():
     indir = p3d.Filename(src.get_dirname())
     outdir = p3d.Filename(dst.get_dirname())
 
-    converter = gltf.converter.Converter(indir=indir, outdir=outdir, settings=settings)
+    converter = gltf.converter.Converter(src, settings=settings)
     gltf_data = parse_gltf_file(src)
     converter.update(gltf_data)
 
