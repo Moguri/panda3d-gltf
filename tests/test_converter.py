@@ -10,7 +10,7 @@ def load_test_asset(modelroot, assetname) -> p3d.NodePath:
 def test_texture_external(modelroot):
     model = load_test_asset(modelroot, 'BoxTextured.gltf')
 
-    textures: list[p3d.Texture] = model.find_all_textures('CesiumLogoFlat')
+    textures = model.find_all_textures('CesiumLogoFlat')
     assert textures
 
     texture = textures[0]
@@ -19,7 +19,7 @@ def test_texture_external(modelroot):
 def test_texture_embedded(modelroot):
     model = load_test_asset(modelroot, 'BoxTexturedEmbed.gltf')
 
-    textures: list[p3d.Texture] = model.find_all_textures('gltf-embedded-0')
+    textures = model.find_all_textures('gltf-embedded-0')
     assert textures
 
 def test_simple_anim(modelroot):
