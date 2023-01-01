@@ -1,3 +1,7 @@
+import dataclasses
+
+import panda3d.core as p3d
+
 from .converter import GltfSettings, Converter
 from .parseutils import parse_gltf_file
 
@@ -10,18 +14,37 @@ def load_model(file_path, gltf_settings=None):
     return converter.active_scene.node()
 
 
+def _config_var_for_type(var_type):
+    return {
+        str: p3d.ConfigVariableString,
+        bool: p3d.ConfigVariableBool,
+    }.get(var_type, None)
+
+
 class GltfLoader:
     # Loader metadata
     name = 'glTF'
     extensions = ['gltf', 'glb']
     supports_compressed = False
 
-    # Global loader options
-    global_settings = GltfSettings()
-
     @staticmethod
     def load_file(path, _options, _record=None):
+        settings = GltfSettings()
+        for field in dataclasses.fields(settings):
+            fname = 'gltf-' + field.name.replace('_', '-')
+            config_type = _config_var_for_type(field.type)
+            if config_type is None:
+                raise RuntimeError(
+                    f'Unknown type ({field.type}) for {fname}'
+                )
+            default_value = getattr(settings, field.name)
+            setattr(
+                settings,
+                field.name,
+                config_type(fname, default_value).get_value()
+            )
+
         return load_model(
             path,
-            gltf_settings=GltfLoader.global_settings,
+            settings,
         )
