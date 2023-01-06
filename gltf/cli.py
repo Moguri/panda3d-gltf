@@ -102,7 +102,9 @@ def main():
     )
 
     src = p3d.Filename(args.src)
+    src.make_absolute()
     dst = p3d.Filename(args.dst)
+    dst.make_absolute()
 
     indir = p3d.Filename(src.get_dirname())
     outdir = p3d.Filename(dst.get_dirname())
