@@ -32,6 +32,7 @@ class GltfSettings:
     textures: str = 'ref'
     legacy_materials: bool = False
     skip_animations: bool = False
+    flatten_nodes: bool = False
 
 
 class Converter():
@@ -377,6 +378,9 @@ class Converter():
 
             for nodeid in node_list:
                 add_node(scene_root, gltf_scene, nodeid, {}, {})
+
+            if self.settings.flatten_nodes:
+                scene_root.flatten_medium()
 
             self.scenes[sceneid] = scene_root
 

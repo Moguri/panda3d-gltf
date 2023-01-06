@@ -90,6 +90,12 @@ def main():
         help='control what to do with animation data'
     )
 
+    parser.add_argument(
+        '--flatten-nodes',
+        action='store_true',
+        help='attempt to flatten resulting node structure'
+    )
+
     args = parser.parse_args()
 
     settings = gltf.GltfSettings(
@@ -99,6 +105,7 @@ def main():
         textures=args.textures,
         legacy_materials=args.legacy_materials,
         skip_animations=args.animations == 'skip',
+        flatten_nodes=args.flatten_nodes,
     )
 
     src = p3d.Filename(args.src)
