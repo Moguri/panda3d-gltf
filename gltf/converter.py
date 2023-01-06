@@ -26,7 +26,7 @@ else:
 
 @dataclass
 class GltfSettings:
-    physics_engine: str = 'builtin'
+    collision_shapes: str = 'builtin'
     skip_axis_conversion: bool = False
     no_srgb: bool = False
     textures: str = 'ref'
@@ -295,7 +295,7 @@ class Converter():
                             gltf_data['extensions']['BP_physics_engine']['engine'] == 'bullet'
                         )
                     else:
-                        use_bullet = self.settings.physics_engine == 'bullet'
+                        use_bullet = self.settings.collision_shapes == 'bullet'
                     if use_bullet and not HAVE_BULLET:
                         print(
                             'Warning: attempted to export for Bullet, which is unavailable, falling back to builtin'

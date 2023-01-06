@@ -31,7 +31,18 @@ def main():
             'bullet',
         ],
         default='builtin',
-        help='the physics engine to build collision solids for'
+        help='the physics engine to build collision solids for (DEPRECATED)',
+        dest='collision_shapes'
+    )
+
+    parser.add_argument(
+        '--collision-shapes',
+        choices=[
+            'builtin',
+            'bullet',
+        ],
+        default='builtin',
+        help='the collision system to build shapes for'
     )
 
     parser.add_argument(
@@ -82,7 +93,7 @@ def main():
     args = parser.parse_args()
 
     settings = gltf.GltfSettings(
-        physics_engine=args.physics_engine,
+        collision_shapes=args.collision_shapes,
         skip_axis_conversion=args.skip_axis_conversion,
         no_srgb=args.no_srgb,
         textures=args.textures,
