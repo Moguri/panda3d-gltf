@@ -163,7 +163,7 @@ class Converter():
             self.load_mesh(meshid, gltf_mesh, gltf_data)
 
         # Build scenegraphs
-        def add_node(root, gltf_scene, nodeid, jvtmap, cvsmap):
+        def add_node(root, gltf_scene, nodeid, jvtmap, cvsmap, physics_parent = None):
             try:
                 gltf_node = gltf_data['nodes'][nodeid]
             except IndexError:
@@ -242,6 +242,7 @@ class Converter():
                 camid = gltf_node['camera']
                 cam = self.cameras[camid]
                 np.attach_new_node(cam)
+            compound_physics = None
             if 'extensions' in gltf_node:
                 light_ext = None
                 has_light_ext = False
@@ -311,7 +312,9 @@ class Converter():
                             radius,
                             height,
                             intangible,
-                            gltf_rigidbody
+                            gltf_rigidbody,
+                            physics_parent,
+                            panda_node.transform
                         )
                     else:
                         phynode = self.load_physics_builtin(
@@ -327,13 +330,14 @@ class Converter():
                         phynp = np.attach_new_node(phynode)
                         for geomnode in np.find_all_matches('+GeomNode'):
                             geomnode.reparent_to(phynp)
+                        compound_physics = phynp if len(phynode.shapes) == 0 else None
             if 'extras' in gltf_node:
                 for key, value in gltf_node['extras'].items():
                     np.set_tag(key, str(value))
 
 
             for child_nodeid in gltf_node.get('children', []):
-                add_node(np, gltf_scene, child_nodeid, jvtmap, cvsmap)
+                add_node(compound_physics or np, gltf_scene, child_nodeid, jvtmap, cvsmap, compound_physics.node() if compound_physics is not None else None)
 
             # Handle visibility after children are loaded
             def visible_recursive(node, visible):
@@ -1689,9 +1693,18 @@ class Converter():
 
         self.lights[lightid] = node
 
-    def load_physics_bullet(self, node_name, geomnode, shape_type, bounding_box, radius, height, intangible, gltf_rigidbody): # pylint: disable=line-too-long
+    def load_physics_bullet(self, node_name, geomnode, shape_type, bounding_box, radius, height, intangible, gltf_rigidbody, physics_parent, child_transform): # pylint: disable=line-too-long
+        def bullet_node(node_name, intangible, static, mass):
+            if intangible:
+                return bullet.BulletGhostNode(node_name)
+            else:
+                phynode = bullet.BulletRigidBodyNode(node_name)
+                if not static:
+                    phynode.mass = mass
+                return phynode
+
         shape = None
-        static = gltf_rigidbody is not None and 'static' in gltf_rigidbody and gltf_rigidbody['static']
+        static, mass = (False, 1.0) if gltf_rigidbody is None else (gltf_rigidbody.get('static', False), gltf_rigidbody.get('mass', 1.0))
 
         if shape_type == 'BOX':
             shape = bullet.BulletBoxShape(LVector3(*bounding_box) / 2.0)
@@ -1715,19 +1728,20 @@ class Converter():
                 for geom in geomnode.get_geoms():
                     mesh.add_geom(geom)
                 shape = bullet.BulletTriangleMeshShape(mesh, dynamic=not static)
+        elif shape_type == 'COMPOUND' and physics_parent is None:
+            # Compound physics shapes are based on their children
+            return bullet_node(node_name, intangible, static, mass)
         else:
             print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
 
         if shape is not None:
-            if intangible:
-                phynode = bullet.BulletGhostNode(node_name)
+            if physics_parent:
+                physics_parent.add_shape(shape, child_transform)
+                return None
             else:
-                phynode = bullet.BulletRigidBodyNode(node_name)
-            phynode.add_shape(shape)
-            if not static:
-                mass = 1.0 if gltf_rigidbody is None else gltf_rigidbody.get('mass', 1.0)
-                phynode.set_mass(mass)
-            return phynode
+                phynode = bullet_node(node_name, intangible, static, mass)
+                phynode.add_shape(shape)
+                return phynode
         else:
             print("Could not create collision shape for object ({})".format(node_name))
 
