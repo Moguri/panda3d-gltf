@@ -35,6 +35,14 @@ class GltfSettings:
     flatten_nodes: bool = False
 
 
+def get_extras(gltf_data):
+    extras = gltf_data.get('extras', {})
+    if not isinstance(extras, dict):
+        # weird, but legal; fail silently for now
+        return {}
+    return extras
+
+
 class Converter():
     _COMPONENT_TYPE_MAP = {
         5120: GeomEnums.NT_int8,
@@ -171,6 +179,7 @@ class Converter():
                 print("Could not find node with index: {}".format(nodeid))
                 return
 
+            scene_extras = get_extras(gltf_scene)
             node_name = gltf_node.get('name', 'node'+str(nodeid))
             if nodeid in self._joint_nodes:
                 # Handle non-joint children of joints, but don't add joints themselves
@@ -213,8 +222,8 @@ class Converter():
             if nodeid in self.skeletons:
                 self.build_character(panda_node, nodeid, jvtmap, cvsmap, gltf_data)
 
-            if 'extras' in gltf_scene and 'hidden_nodes' in gltf_scene['extras']:
-                if nodeid in gltf_scene['extras']['hidden_nodes']:
+            if 'hidden_nodes' in scene_extras:
+                if nodeid in scene_extras['hidden_nodes']:
                     panda_node = panda_node.make_copy()
 
             if 'mesh' in gltf_node:
@@ -328,10 +337,9 @@ class Converter():
                         phynp = np.attach_new_node(phynode)
                         for geomnode in np.find_all_matches('+GeomNode'):
                             geomnode.reparent_to(phynp)
-            if 'extras' in gltf_node:
-                for key, value in gltf_node['extras'].items():
-                    np.set_tag(key, str(value))
 
+            for key, value in get_extras(gltf_node).items():
+                np.set_tag(key, str(value))
 
             for child_nodeid in gltf_node.get('children', []):
                 add_node(np, gltf_scene, child_nodeid, jvtmap, cvsmap)
@@ -344,13 +352,14 @@ class Converter():
                     node.hide()
                 for child in node.get_children():
                     visible_recursive(child, visible)
-            if 'extras' in gltf_scene and 'hidden_nodes' in gltf_scene['extras']:
-                if nodeid in gltf_scene['extras']['hidden_nodes']:
-                    #print('Hiding', np)
-                    visible_recursive(np, False)
-                else:
-                    #print('Showing', np)
-                    visible_recursive(np, True)
+
+            hidden_nodes = scene_extras.get('hidden_nodes', [])
+            if nodeid in hidden_nodes:
+                #print('Hiding', np)
+                visible_recursive(np, False)
+            else:
+                #print('Showing', np)
+                visible_recursive(np, True)
 
             # Check if we need to deal with negative scale values
             scale = panda_node.get_transform().get_scale()
@@ -373,8 +382,8 @@ class Converter():
             scene_root = NodePath(ModelRoot(scene_name))
 
             node_list = gltf_scene['nodes']
-            if 'extras' in gltf_scene and 'hidden_nodes' in gltf_scene['extras']:
-                node_list += gltf_scene['extras']['hidden_nodes']
+            hidden_nodes = get_extras(gltf_scene).get('hidden_nodes', [])
+            node_list += hidden_nodes
 
             for nodeid in node_list:
                 add_node(scene_root, gltf_scene, nodeid, {}, {})
@@ -390,11 +399,11 @@ class Converter():
             self.active_scene = self.scenes[sceneid]
         if 'scenes' in gltf_data:
             gltf_scene = gltf_data['scenes'][sceneid]
-            if 'extras' in gltf_scene:
-                if 'background_color' in gltf_scene['extras']:
-                    self.background_color = gltf_scene['extras']['background_color']
-                if 'active_camera' in gltf_scene['extras']:
-                    self.active_camera = gltf_scene['extras']['active_camera']
+            scene_extras = get_extras(gltf_scene)
+            if 'background_color' in scene_extras:
+                self.background_color = scene_extras['background_color']
+            if 'active_camera' in scene_extras:
+                self.active_camera = scene_extras['active_camera']
 
     def load_matrix(self, mat):
         lmat = LMatrix4()
@@ -792,7 +801,7 @@ class Converter():
         # Check for morph target columns.
         targets = gltf_primitive.get('targets')
         if targets:
-            target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+            target_names = get_extras(gltf_mesh).get('targetNames', [])
 
             for i, target in enumerate(targets):
                 if i < len(target_names):
@@ -1367,7 +1376,7 @@ class Converter():
                         num_targets = max(len(targets), num_targets)
 
                 if num_targets > 0:
-                    target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+                    target_names = get_extras(gltf_mesh).get('targetNames', [])
                     num_targets = max(len(target_names), num_targets)
 
                     if not weights:
@@ -1594,7 +1603,7 @@ class Converter():
             gltf_mesh = gltf_data['meshes'][meshid]
             weights = gltf_mesh.get('weights')
             if weights:
-                target_names = gltf_mesh.get('extras', {}).get('targetNames', [])
+                target_names = get_extras(gltf_mesh).get('targetNames', [])
                 if len(target_names) < len(weights):
                     target_names += [str(i) for i in range(len(target_names), len(weights))]
 
