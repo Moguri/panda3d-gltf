@@ -940,6 +940,7 @@ class Converter():
         vformat = GeomVertexFormat()
         varray_vert = GeomVertexArrayFormat()
         varray_skin = GeomVertexArrayFormat()
+        varray_morph = GeomVertexArrayFormat()
 
         skip_columns = (
             InternalName.get_transform_index(),
@@ -948,9 +949,15 @@ class Converter():
         )
         for arr in reg_format.get_arrays():
             for column in arr.get_columns():
-                varray = varray_skin if column.get_name() in skip_columns else varray_vert
+                column_name = column.get_name()
+                if column_name in skip_columns:
+                    varray = varray_skin
+                elif column_name.parent.basename == "morph":
+                    varray = varray_morph
+                else:
+                    varray = varray_vert
                 varray.add_column(
-                    column.get_name(),
+                    column_name,
                     column.get_num_components(),
                     column.get_numeric_type(),
                     column.get_contents()
@@ -968,6 +975,9 @@ class Converter():
 
             vformat.add_array(varray_blends)
             vformat.add_array(varray_skin)
+
+        if targets:
+            vformat.add_array(varray_morph)
 
         reg_format = GeomVertexFormat.register_format(vformat)
         vdata = vdata.convert_to(reg_format)
