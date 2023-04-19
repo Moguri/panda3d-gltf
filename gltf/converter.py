@@ -9,6 +9,7 @@ import pprint # pylint: disable=unused-import
 from dataclasses import dataclass
 
 from panda3d.core import * # pylint: disable=wildcard-import
+import panda3d.core as p3d
 try:
     from panda3d import bullet
     HAVE_BULLET = True
@@ -41,6 +42,19 @@ def get_extras(gltf_data):
         # weird, but legal; fail silently for now
         return {}
     return extras
+
+@dataclass
+class CharInfo:
+    character: p3d.Character
+    nodepath: p3d.NodePath
+    jvtmap: dict[int, p3d.JointVertexTransform]
+    cvsmap: dict[tuple[int, str], p3d.CharacterVertexSlider]
+
+    def __init__(self, name: str):
+        self.character = p3d.Character(name)
+        self.nodepath = p3d.NodePath(self.character)
+        self.jvtmap = {}
+        self.cvsmap = {}
 
 
 class Converter():
@@ -115,6 +129,7 @@ class Converter():
         self.scenes = {}
         self.skeletons = {}
         self.joint_parents = {}
+        self.characters = {}
 
         # Coordinate system transform matrix
         self.csxform = LMatrix4.convert_mat(CS_yup_right, CS_default)
@@ -171,8 +186,25 @@ class Converter():
         for meshid, gltf_mesh in enumerate(gltf_data.get('meshes', [])):
             self.load_mesh(meshid, gltf_mesh, gltf_data)
 
+        def build_characters(nodeid):
+            try:
+                gltf_node = gltf_data['nodes'][nodeid]
+            except IndexError:
+                print("Could not find node with index: {}".format(nodeid))
+                return
+            node_name = gltf_node.get('name', 'node'+str(nodeid))
+
+            if nodeid in self.skeletons:
+                skinid = self.skeletons[nodeid]
+                charinfo = CharInfo(node_name)
+                self.build_character(charinfo, nodeid, gltf_data)
+                self.characters[skinid] = charinfo
+
+            for child_nodeid in gltf_node.get('children', []):
+                build_characters(child_nodeid)
+
         # Build scenegraphs
-        def add_node(root, gltf_scene, nodeid, jvtmap, cvsmap):
+        def add_node(root, gltf_scene, nodeid):
             try:
                 gltf_node = gltf_data['nodes'][nodeid]
             except IndexError:
@@ -181,18 +213,18 @@ class Converter():
 
             scene_extras = get_extras(gltf_scene)
             node_name = gltf_node.get('name', 'node'+str(nodeid))
-            if nodeid in self._joint_nodes:
+            if nodeid in self._joint_nodes and not nodeid in self.skeletons:
                 # Handle non-joint children of joints, but don't add joints themselves
                 for child_nodeid in gltf_node.get('children', []):
-                    add_node(root, gltf_scene, child_nodeid, jvtmap, cvsmap)
+                    add_node(root, gltf_scene, child_nodeid)
                 return
 
-            jvtmap = dict(jvtmap)
-            cvsmap = dict(cvsmap)
-
+            charinfo: CharInfo = None
             if nodeid in self.skeletons:
                 # This node is the root of an animated character.
-                panda_node = Character(node_name)
+                skinid = self.skeletons[nodeid]
+                charinfo = self.characters[skinid]
+                panda_node = charinfo.character
             else:
                 panda_node = PandaNode(node_name)
 
@@ -216,11 +248,12 @@ class Converter():
 
             panda_node.set_transform(TransformState.make_mat(self.csxform_inv * gltf_mat * self.csxform))
 
-            np = self.node_paths.get(nodeid, root.attach_new_node(panda_node))
+            if charinfo:
+                np = charinfo.nodepath
+                np.reparent_to(root)
+            else:
+                np = self.node_paths.get(nodeid, root.attach_new_node(panda_node))
             self.node_paths[nodeid] = np
-
-            if nodeid in self.skeletons:
-                self.build_character(panda_node, nodeid, jvtmap, cvsmap, gltf_data)
 
             if 'hidden_nodes' in scene_extras:
                 if nodeid in scene_extras['hidden_nodes']:
@@ -231,22 +264,26 @@ class Converter():
                 gltf_mesh = gltf_data['meshes'][meshid]
                 mesh = self.meshes[meshid]
 
+                charinfo = None
+                if "skin" in gltf_node:
+                    skinid = gltf_node["skin"]
+                    charinfo = self.characters[skinid]
+
                 # Does this mesh have weights, but are we not under a character?
                 # If so, create a character just for this mesh.
-                if gltf_mesh.get('weights') and not jvtmap and not cvsmap:
+                if gltf_mesh.get('weights') and not charinfo:
                     mesh_name = gltf_mesh.get('name', 'mesh'+str(meshid))
-                    char = Character(mesh_name)
-                    cvsmap2 = {}
-                    self.build_character(char, nodeid, {}, cvsmap2, gltf_data, recurse=False)
-                    self.combine_mesh_morphs(mesh, meshid, cvsmap2)
+                    charinfo = Character(mesh_name)
+                    charinfo = CharInfo(mesh_name)
+                    self.build_character(charinfo, nodeid, gltf_data, recurse=False)
+                    charinfo.nodepath.reparent_to(np)
 
-                    np.attach_new_node(char).attach_new_node(mesh)
+                if charinfo:
+                    charinfo.nodepath.attach_new_node(mesh)
+                    self.combine_mesh_skin(mesh, charinfo)
+                    self.combine_mesh_morphs(mesh, meshid, charinfo)
                 else:
                     np.attach_new_node(mesh)
-                    if jvtmap:
-                        self.combine_mesh_skin(mesh, jvtmap)
-                    if cvsmap:
-                        self.combine_mesh_morphs(mesh, meshid, cvsmap)
 
             if 'camera' in gltf_node:
                 camid = gltf_node['camera']
@@ -342,7 +379,7 @@ class Converter():
                 np.set_tag(key, str(value))
 
             for child_nodeid in gltf_node.get('children', []):
-                add_node(np, gltf_scene, child_nodeid, jvtmap, cvsmap)
+                add_node(np, gltf_scene, child_nodeid)
 
             # Handle visibility after children are loaded
             def visible_recursive(node, visible):
@@ -377,6 +414,11 @@ class Converter():
                 np.reparent_to(xformnp)
                 joint.add_net_transform(xformnp.node())
 
+            # if the NodePath children were moved under a Character and has no other children,
+            # then we can safely delete the NodePath
+            if charinfo and not np.children:
+                np.remove_node()
+
         for sceneid, gltf_scene in enumerate(gltf_data.get('scenes', [])):
             scene_name = gltf_scene.get('name', 'scene'+str(sceneid))
             scene_root = NodePath(ModelRoot(scene_name))
@@ -385,8 +427,13 @@ class Converter():
             hidden_nodes = get_extras(gltf_scene).get('hidden_nodes', [])
             node_list += hidden_nodes
 
+            # Run through and pre-build Characters
             for nodeid in node_list:
-                add_node(scene_root, gltf_scene, nodeid, {}, {})
+                build_characters(nodeid)
+
+            # Now iterate again to build the scene graph
+            for nodeid in node_list:
+                add_node(scene_root, gltf_scene, nodeid)
 
             if self.settings.flatten_nodes:
                 scene_root.flatten_medium()
@@ -1159,7 +1206,8 @@ class Converter():
             data.append(LVecBase4(gvr.get_data4()))
         return data
 
-    def build_character(self, char, nodeid, jvtmap, cvsmap, gltf_data, recurse=True):
+    def build_character(self, charinfo: CharInfo, nodeid, gltf_data, recurse=True):
+        char = charinfo.character
         affected_nodeids = set()
 
         for bundle in char.bundles:
@@ -1177,12 +1225,12 @@ class Converter():
                 child_set = list(itertools.chain(*[node.get('children', []) for node in joint_nodes]))
                 root_nodeids = [nodeid for nodeid in gltf_skin['joints'] if nodeid not in child_set]
 
-            jvtmap.update(self.build_character_joints(char, root_nodeids,
-                                                      affected_nodeids, skinid,
-                                                      gltf_data))
+            charinfo.jvtmap.update(self.build_character_joints(char, root_nodeids,
+                                                               affected_nodeids, skinid,
+                                                               gltf_data))
 
-        cvsmap.update(self.build_character_sliders(char, nodeid, affected_nodeids,
-                                                   gltf_data, recurse=recurse))
+        charinfo.cvsmap.update(self.build_character_sliders(char, nodeid, affected_nodeids,
+                                                            gltf_data, recurse=recurse))
 
         # Find animations that affect the collected nodes.
         #print("Looking for actions for", skinname, node_ids)
@@ -1226,14 +1274,17 @@ class Converter():
                     self.build_animation_skeleton(char, skeleton, root_nodeid,
                                                   num_frames, gltf_anim, gltf_data)
 
-            if cvsmap and any(chan['target']['path'] == 'weights' for chan in channels):
-                morph = AnimGroup(bundle, 'morph')
-                self.build_animation_morph(morph, nodeid, num_frames, gltf_anim,
-                                           gltf_data, recurse=recurse)
+            # if cvsmap and any(chan['target']['path'] == 'weights' for chan in channels):
+            #     morph = AnimGroup(bundle, 'morph')
+            #     self.build_animation_morph(morph, nodeid, num_frames, gltf_anim,
+            #                                gltf_data, recurse=recurse)
 
             char.add_child(AnimBundleNode(char.name, bundle))
 
-    def combine_mesh_skin(self, geom_node, jvtmap):
+    def combine_mesh_skin(self, geom_node, charinfo):
+        jvtmap = charinfo.jvtmap
+        if not jvtmap:
+            return
         jvtmap = collections.OrderedDict(sorted(jvtmap.items()))
 
         for geom in geom_node.modify_geoms():
@@ -1273,7 +1324,10 @@ class Converter():
             inverse = net_xform.get_inverse()
             gvd.transform_vertices(inverse.get_mat())
 
-    def combine_mesh_morphs(self, geom_node, meshid, cvsmap):
+    def combine_mesh_morphs(self, geom_node, meshid, charinfo):
+        cvsmap = charinfo.cvsmap
+        if not cvsmap:
+            return
         zero = LVecBase4.zero()
 
         for geom in geom_node.modify_geoms():
