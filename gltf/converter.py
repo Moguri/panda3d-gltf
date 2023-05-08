@@ -1096,7 +1096,49 @@ class Converter():
             self.calculate_tangents(geom)
         geom.transform_vertices(self.csxform)
         geom_node.add_geom(geom, mat)
+    
+    def tangent_data_form_triangles(self,tris, tana, tanb):
+        for tri in tris:
+            idx0, idx1, idx2 = tri
+            edge1 = posdata[idx1] - posdata[idx0]
+            edge2 = posdata[idx2] - posdata[idx0]
+            duv1 = uvdata[idx1] - uvdata[idx0]
+            duv2 = uvdata[idx2] - uvdata[idx0]
 
+            denom = duv1.x * duv2.y - duv2.x * duv1.y
+            
+            ### pretty sure this block does nothing.
+            if denom != 0.0:
+                fconst = 1.0 / denom
+                tangent = (edge1.xyz * duv2.y - edge2.xyz * duv1.y) * fconst
+                bitangent = (edge2.xyz * duv1.x - edge1.xyz * duv2.x) * fconst
+            else:
+                tangent = LVector3(0)
+                bitangent = LVector3(0)
+            ###
+
+            for idx in tri:
+                tana[idx] += tangent
+                tanb[idx] += bitangent
+        
+        return tana, tanb
+    
+    def calculate_vertex_tangents(self, tangent_writer, normal_data, tan, tanb):
+        for normal, tan0, tan1 in zip(normaldata, tana, tanb):
+            tangent = tan0 - (normal * normal.dot(tan0))
+            tangent.normalize()
+
+            tangent4 = LVector4(
+                tangent.x,
+                tangent.y,
+                tangent.z,
+                -1.0 if normal.cross(tan0).dot(tan1) < 0 else 1.0
+            )
+            if self.compose_cs == CS_yup_right:
+                tangent_writer.set_data4(tangent4[0], -tangent4[2], tangent4[1], tangent4[3])
+            else:
+                tangent_writer.set_data4(tangent4)
+    
     def calculate_normals(self, geom):
         # Generate flat normals, as required by the glTF spec.
         if geom.get_primitive_type() != GeomEnums.PT_polygons:
@@ -1147,44 +1189,14 @@ class Converter():
             return
 
         # Gather tangent data from triangles
-        for tri in tris:
-            idx0, idx1, idx2 = tri
-            edge1 = posdata[idx1] - posdata[idx0]
-            edge2 = posdata[idx2] - posdata[idx0]
-            duv1 = uvdata[idx1] - uvdata[idx0]
-            duv2 = uvdata[idx2] - uvdata[idx0]
-
-            denom = duv1.x * duv2.y - duv2.x * duv1.y
-            if denom != 0.0:
-                fconst = 1.0 / denom
-                tangent = (edge1.xyz * duv2.y - edge2.xyz * duv1.y) * fconst
-                bitangent = (edge2.xyz * duv1.x - edge1.xyz * duv2.x) * fconst
-            else:
-                tangent = LVector3(0)
-                bitangent = LVector3(0)
-
-            for idx in tri:
-                tana[idx] += tangent
-                tanb[idx] += bitangent
-
+        tana, tanb = self.tangent_data_form_triangles(tris, tana, tanb)
+    
         # Calculate per-vertex tangent values
-        for normal, tan0, tan1 in zip(normaldata, tana, tanb):
-            tangent = tan0 - (normal * normal.dot(tan0))
-            tangent.normalize()
-
-            tangent4 = LVector4(
-                tangent.x,
-                tangent.y,
-                tangent.z,
-                -1.0 if normal.cross(tan0).dot(tan1) < 0 else 1.0
-            )
-            if self.compose_cs == CS_yup_right:
-                tangent_writer.set_data4(tangent4[0], -tangent4[2], tangent4[1], tangent4[3])
-            else:
-                tangent_writer.set_data4(tangent4)
-
+        self.calculate_vertex_tangents(tangent_writer, normal_data, tan, tanb)
+    
         geom.set_vertex_data(gvd)
-
+        
+    
     def load_mesh(self, meshid, gltf_mesh, gltf_data):
         mesh_name = gltf_mesh.get('name', 'mesh'+str(meshid))
         node = self.meshes.get(meshid, GeomNode(mesh_name))
