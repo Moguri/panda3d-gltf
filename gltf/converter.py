@@ -1097,7 +1097,7 @@ class Converter():
         geom.transform_vertices(self.csxform)
         geom_node.add_geom(geom, mat)
     
-    def tangent_data_form_triangles(self,tris, tana, tanb):
+    def tangent_data_form_triangles(self,tris, tana, tanb, posdata, uvdata):
         for tri in tris:
             idx0, idx1, idx2 = tri
             edge1 = posdata[idx1] - posdata[idx0]
@@ -1189,7 +1189,7 @@ class Converter():
             return
 
         # Gather tangent data from triangles
-        tana, tanb = self.tangent_data_form_triangles(tris, tana, tanb)
+        tana, tanb = self.tangent_data_form_triangles(tris, tana, tanb, posdata, uvdata)
     
         # Calculate per-vertex tangent values
         self.calculate_vertex_tangents(tangent_writer, normal_data, tan, tanb)
