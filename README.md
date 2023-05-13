@@ -61,7 +61,7 @@ However, this mostly applies to internals, and effort will be put into keeping t
 
 ## Running Tests
 
-First install `blend2bam` in editable mode along with `test` extras:
+First install `panda3d-gltf` in editable mode along with `test` extras:
 
 ```bash
 pip install -e .[test]
@@ -85,6 +85,7 @@ and run:
 
 ```bash
 python -m build
+```
 
 ## License
 [B3D 3-Clause](https://choosealicense.com/licenses/bsd-3-clause/)
