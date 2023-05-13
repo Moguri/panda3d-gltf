@@ -1,6 +1,48 @@
 [build-system]
 requires = [
-    "setuptools >= 42",
+    "setuptools >= 61",
     "wheel",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "panda3d-gltf"
+dynamic = ["version"]
+authors = [
+    {name = "Mitchell Stokes"},
+]
+description = "glTF utilities for Panda3D"
+keywords = ["panda3d", "gltf"]
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "panda3d >= 1.10.8",
+    "panda3d-simplepbr >= 0.6",
+]
+requires-python = ">= 3.9"
+
+[project.urls]
+homepage = "https://github.com/Moguri/panda3d-gltf"
+
+[project.optional-dependencies]
+test = ["pytest", "pylint~=2.5.0", "pytest-pylint"]
+
+[project.scripts]
+gltf2bam = "gltf.cli:main"
+
+[project.gui-scripts]
+gltf-viewer = "gltf.viewer:main"
+
+[project.entry-points."panda3d.loaders"]
+gltf = "gltf.loader:GltfLoader"
+glb = "gltf.loader:GltfLoader"
+
+[tool.setuptools.dynamic]
+version = {attr = "gltf.version.__version__"}
+
+[tool.pytest]
+addopts = "--pylint"
