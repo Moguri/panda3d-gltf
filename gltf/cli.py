@@ -108,9 +108,9 @@ def main():
         flatten_nodes=args.flatten_nodes,
     )
 
-    src = p3d.Filename(args.src)
+    src = p3d.Filename.from_os_specific(args.src)
     src.make_absolute()
-    dst = p3d.Filename(args.dst)
+    dst = p3d.Filename.from_os_specific(args.dst)
     dst.make_absolute()
 
     indir = p3d.Filename(src.get_dirname())
