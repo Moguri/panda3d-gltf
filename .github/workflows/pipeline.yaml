@@ -2,22 +2,31 @@ name: Pipeline
 on: [push, pull_request]
 
 jobs:
-  build_test:
-    runs-on: ubuntu-latest
+  tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        pyversion: ['3.9', '3.10']
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v1
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
       with:
-        python-version: 3.9
-    - name: Install Package
-      run: |
-        pip install -e .[test]
+        python-version: ${{ matrix.pyversion }}
     - name: Run Tests
       run: |
+        python -m pip install -e .[test]
         python -m pytest
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
     - name: Build package
       run: |
+        python -m pip install -e .
         python -m pip install --upgrade build
         python -m build
     - name: Publish package
