@@ -565,7 +565,7 @@ class Converter():
                 uri = Filename.from_os_specific(uri)
                 fulluri = Filename(self.filedir, uri)
                 texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
-                texture.filename = texture.fullpath = uri
+                texture.filename = uri
         else:
             name = source.get('name', '')
             ext = source['mimeType'].split('/')[1]
