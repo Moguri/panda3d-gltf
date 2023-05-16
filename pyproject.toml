@@ -12,6 +12,7 @@ authors = [
     {name = "Mitchell Stokes"},
 ]
 description = "glTF utilities for Panda3D"
+readme = "README.md"
 keywords = ["panda3d", "gltf"]
 license = {text = "BSD-3-Clause"}
 classifiers = [
