@@ -324,7 +324,10 @@ class Converter():
                     else:
                         collision_shape = gltf_collisions['collisionShapes'][0]
                         shape_type = collision_shape['shapeType']
-                    bounding_box = collision_shape['boundingBox']
+                    bounding_box = [
+                        max(0.00001, i)
+                        for i in collision_shape['boundingBox']
+                    ]
                     radius = max(bounding_box[0], bounding_box[1]) / 2.0
                     height = bounding_box[2]
                     geomnode = None
