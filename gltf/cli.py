@@ -138,6 +138,7 @@ def main():
             texsrc = os.path.join(indir.to_os_specific(), fname)
             texdst = os.path.join(outdir.to_os_specific(), fname)
 
+            texture.fullpath = fname
             os.makedirs(os.path.dirname(texdst), exist_ok=True)
             shutil.copy(texsrc, texdst)
 
