@@ -16,8 +16,18 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument('src', type=str, help='source file')
-    parser.add_argument('dst', type=str, help='destination file')
+    parser.add_argument(
+        'src',
+        type=str,
+        help='source file'
+    )
+    parser.add_argument(
+        'dst',
+        type=str,
+        nargs='?',
+        default='',
+        help='destination file',
+    )
 
     parser.add_argument(
         '--version',
@@ -103,7 +113,6 @@ def main():
         collision_shapes=args.collision_shapes,
         skip_axis_conversion=args.skip_axis_conversion,
         no_srgb=args.no_srgb,
-        textures=args.textures,
         legacy_materials=args.legacy_materials,
         skip_animations=args.animations == 'skip',
         flatten_nodes=args.flatten_nodes,
@@ -111,6 +120,9 @@ def main():
 
     src = p3d.Filename.from_os_specific(args.src)
     src.make_absolute()
+
+    if not args.dst:
+        args.dst = args.src.rsplit('.', 1)[0] + '.bam'
     dst = p3d.Filename.from_os_specific(args.dst)
     dst.make_absolute()
 
