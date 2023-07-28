@@ -39,8 +39,11 @@ gltf2bam = "gltf.cli:main"
 gltf-viewer = "gltf.viewer:main"
 
 [project.entry-points."panda3d.loaders"]
-gltf = "gltf.loader:GltfLoader"
-glb = "gltf.loader:GltfLoader"
+gltf = "gltf._loader:GltfLoader"
+glb = "gltf._loader:GltfLoader"
+
+[tool.setuptools]
+packages = ["gltf"]
 
 [tool.setuptools.dynamic]
 version = {attr = "gltf.version.__version__"}

@@ -1,8 +1,8 @@
 import panda3d.core as p3d
 
 from .version import __version__
-from .converter import GltfSettings
-from .loader import load_model
+from ._converter import GltfSettings
+from ._loader import load_model
 
 
 __all__ = [

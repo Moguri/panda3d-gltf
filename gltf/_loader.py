@@ -2,7 +2,7 @@ import dataclasses
 
 import panda3d.core as p3d
 
-from .converter import GltfSettings, Converter
+from ._converter import GltfSettings, Converter
 from .parseutils import parse_gltf_file
 
 

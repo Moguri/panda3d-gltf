@@ -4,9 +4,10 @@ import shutil
 
 import panda3d.core as p3d
 
-import gltf.converter
-from gltf.version import __version__
-from gltf.parseutils import parse_gltf_file
+from . import GltfSettings
+from ._converter import Converter
+from .version import __version__
+from .parseutils import parse_gltf_file
 
 
 def main():
@@ -98,7 +99,7 @@ def main():
 
     args = parser.parse_args()
 
-    settings = gltf.GltfSettings(
+    settings = GltfSettings(
         collision_shapes=args.collision_shapes,
         skip_axis_conversion=args.skip_axis_conversion,
         no_srgb=args.no_srgb,
@@ -116,7 +117,7 @@ def main():
     indir = p3d.Filename(src.get_dirname())
     outdir = p3d.Filename(dst.get_dirname())
 
-    converter = gltf.converter.Converter(src, settings=settings)
+    converter = Converter(src, settings=settings)
     gltf_data = parse_gltf_file(src)
     converter.update(gltf_data)
 
