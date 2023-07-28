@@ -54,11 +54,6 @@ gltf2bam source.gltf output.bam
 `panda3d-gltf` ships with `gltf-viewer`.
 This is a simple viewer (like `pview`) to view glTF (or any other file format support by Panda3D) with a simple, PBR renderer.
 
-## API Stability
-
-Since `panda3d-gltf` has not reached a 1.0 release, its API should not be considered "stable."
-However, this mostly applies to internals, and effort will be put into keeping the `gltf2bam` API from breaking.
-
 ## Running Tests
 
 First install `panda3d-gltf` in editable mode along with `test` extras:
