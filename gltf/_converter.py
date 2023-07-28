@@ -31,7 +31,6 @@ class GltfSettings:
     collision_shapes: str = 'builtin'
     skip_axis_conversion: bool = False
     no_srgb: bool = False
-    textures: str = 'ref'
     legacy_materials: bool = False
     skip_animations: bool = False
     flatten_nodes: bool = False
