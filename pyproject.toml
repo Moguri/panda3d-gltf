@@ -45,5 +45,5 @@ glb = "gltf.loader:GltfLoader"
 [tool.setuptools.dynamic]
 version = {attr = "gltf.version.__version__"}
 
-[tool.pytest]
+[tool.pytest.ini_options]
 addopts = "--pylint"
