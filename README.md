@@ -35,11 +35,29 @@ pip install git+https://github.com/Moguri/panda3d-gltf.git
 
 ## Usage
 
+### Configuration
+
+`panda3d-gltf` has the following configuration options.
+See below for information on setting these options for the native loader and the CLI.
+
+* `collision_shapes` - the type of collision shapes to build.
+  Either `builtin` for `ColisionSolids` or `bullet` for `BulletRigidBodyNodes`.
+  Defaults to `builtin`.
+* `flatten_nodes` - attempt to flatten resulting scene graph, defaults to `False`
+* `legacy_materials` - convert imported PBR materials to legacy materials, defaults to `False`
+* `no_srgb` - do not load textures as sRGB textures, defaults to `False`
+* `skip_animations` - do not convert animation data found in the glTF file, defaults to `False`
+* `skip_axis_conversion` - do not perform axis-conversion (useful if glTF data is already non-standard and already Z-Up), defaults to `False`
+
 ### Native loading
 
 `panda3d-gltf` ships with a Python file loader (requires Panda3D 1.10.4+), which seamlessly adds glTF support to Panda3D's `Loader` classes.
 This *does not* add support to `pview`, which is a C++ application that does not support loading Python file loaders.
 Instead of `pview`, use the `gltf-viewer` that ships with `panda3d-gltf`.
+
+The loader can be configured via PRC variables.
+These PRC variables are prefixed with `gltf-` but otherwise match the names above.
+For example, use `gltf-collision-shapes bullet` to have the loader load Bullet shapes instead of CollisionSolids.
 
 ### Command Line
 
@@ -48,6 +66,8 @@ To convert glTF files to BAM via the command line, use the supplied `gltf2bam` t
 ```bash
 gltf2bam source.gltf output.bam
 ```
+
+See `gltf2bam -h` for more information on usage and available CLI flags.
 
 ### Viewer
 
