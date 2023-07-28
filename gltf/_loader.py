@@ -16,8 +16,8 @@ def load_model(file_path, gltf_settings=None):
 
 def _config_var_for_type(var_type):
     return {
-        str: p3d.ConfigVariableString,
-        bool: p3d.ConfigVariableBool,
+        'str': p3d.ConfigVariableString,
+        'bool': p3d.ConfigVariableBool,
     }.get(var_type, None)
 
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import collections
 import itertools
@@ -47,8 +49,8 @@ def get_extras(gltf_data):
 class CharInfo:
     character: p3d.Character
     nodepath: p3d.NodePath
-    jvtmap: dict[int, p3d.JointVertexTransform]
-    cvsmap: dict[tuple[int, str], p3d.CharacterVertexSlider]
+    jvtmap: 'dict[int, p3d.JointVertexTransform]'
+    cvsmap: 'dict[tuple[int, str], p3d.CharacterVertexSlider]'
 
     def __init__(self, name: str):
         self.character = p3d.Character(name)
