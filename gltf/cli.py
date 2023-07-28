@@ -36,17 +36,6 @@ def main():
     )
 
     parser.add_argument(
-        '--physics-engine',
-        choices=[
-            'builtin',
-            'bullet',
-        ],
-        default='builtin',
-        help='the physics engine to build collision solids for (DEPRECATED)',
-        dest='collision_shapes'
-    )
-
-    parser.add_argument(
         '--collision-shapes',
         choices=[
             'builtin',
