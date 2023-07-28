@@ -1,5 +1,4 @@
 ![Pipeline](https://github.com/Moguri/panda3d-gltf/workflows/Pipeline/badge.svg)
-[![Panda3D Versions](https://img.shields.io/badge/panda3d-1.10%2C%201.11-blue.svg)](https://www.panda3d.org/)
 [![License](https://img.shields.io/github/license/Moguri/panda3d-gltf.svg)](https://choosealicense.com/licenses/bsd-3-clause/)
 
 # panda3d-gltf
