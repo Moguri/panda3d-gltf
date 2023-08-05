@@ -16,7 +16,7 @@ readme = "README.md"
 keywords = ["panda3d", "gltf"]
 license = {text = "BSD-3-Clause"}
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
 ]
