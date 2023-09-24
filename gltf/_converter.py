@@ -127,7 +127,6 @@ class Converter():
         self.mat_states = {}
         self.mat_mesh_map = {}
         self.meshes = {}
-        self.node_paths = {}
         self.scenes = {}
         self.skeletons = {}
         self.joint_parents = {}
@@ -188,49 +187,7 @@ class Converter():
         for meshid, gltf_mesh in enumerate(gltf_data.get('meshes', [])):
             self.load_mesh(meshid, gltf_mesh, gltf_data)
 
-        def build_characters(nodeid):
-            try:
-                gltf_node = gltf_data['nodes'][nodeid]
-            except IndexError:
-                print("Could not find node with index: {}".format(nodeid))
-                return
-            node_name = gltf_node.get('name', 'node'+str(nodeid))
-
-            if nodeid in self.skeletons:
-                skinid = self.skeletons[nodeid]
-                charinfo = CharInfo(node_name)
-                self.build_character(charinfo, nodeid, gltf_data)
-                self.characters[skinid] = charinfo
-
-            for child_nodeid in gltf_node.get('children', []):
-                build_characters(child_nodeid)
-
-        # Build scenegraphs
-        def add_node(root, gltf_scene, nodeid):
-            try:
-                gltf_node = gltf_data['nodes'][nodeid]
-            except IndexError:
-                print("Could not find node with index: {}".format(nodeid))
-                return
-
-            scene_extras = get_extras(gltf_scene)
-            node_name = gltf_node.get('name', 'node'+str(nodeid))
-            if nodeid in self._joint_nodes and not nodeid in self.skeletons:
-                # Handle non-joint children of joints, but don't add joints themselves
-                for child_nodeid in gltf_node.get('children', []):
-                    add_node(root, gltf_scene, child_nodeid)
-                return
-
-            charinfo: CharInfo = None
-            if nodeid in self.skeletons:
-                # This node is the root of an animated character.
-                skinid = self.skeletons[nodeid]
-                charinfo = self.characters[skinid]
-                panda_node = charinfo.character
-            else:
-                panda_node = PandaNode(node_name)
-
-            # Determine the transformation.
+        def get_node_transform(gltf_node):
             if 'matrix' in gltf_node:
                 gltf_mat = LMatrix4(*gltf_node.get('matrix'))
             else:
@@ -248,14 +205,53 @@ class Converter():
                 if 'translation' in gltf_node:
                     gltf_mat *= LMatrix4.translate_mat(*gltf_node['translation'])
 
-            panda_node.set_transform(TransformState.make_mat(self.csxform_inv * gltf_mat * self.csxform))
+            return TransformState.make_mat(self.csxform_inv * gltf_mat * self.csxform)
+
+        def build_characters(nodeid):
+            try:
+                gltf_node = gltf_data['nodes'][nodeid]
+            except IndexError:
+                print("Could not find node with index: {}".format(nodeid))
+                return
+            node_name = gltf_node.get('name', 'node'+str(nodeid))
+
+            if nodeid in self.skeletons:
+                skinid = self.skeletons[nodeid]
+                charinfo = CharInfo(node_name)
+                charinfo.character.set_transform(get_node_transform(gltf_node))
+                self.build_character(charinfo, nodeid, gltf_data, recurse=True)
+                self.characters[skinid] = charinfo
+
+            for child_nodeid in gltf_node.get('children', []):
+                build_characters(child_nodeid)
+
+        # Build scenegraphs
+        def add_node(root, gltf_scene, nodeid):
+            try:
+                gltf_node = gltf_data['nodes'][nodeid]
+            except IndexError:
+                print("Could not find node with index: {}".format(nodeid))
+                return
+
+            skinid = self.skeletons.get(nodeid, None)
+            charinfo = self.characters.get(skinid, None)
+            scene_extras = get_extras(gltf_scene)
+            node_name = gltf_node.get('name', 'node'+str(nodeid))
+            if nodeid in self._joint_nodes and not nodeid in self.skeletons:
+                # Handle non-joint children of joints, but don't add joints themselves
+                for child_nodeid in gltf_node.get('children', []):
+                    add_node(root, gltf_scene, child_nodeid)
+                return
 
             if charinfo:
+                # This node is the root of an animated character.
+                panda_node = charinfo.character
                 np = charinfo.nodepath
                 np.reparent_to(root)
             else:
-                np = self.node_paths.get(nodeid, root.attach_new_node(panda_node))
-            self.node_paths[nodeid] = np
+                panda_node = PandaNode(node_name)
+                panda_node.set_transform(get_node_transform(gltf_node))
+                np = root.attach_new_node(panda_node)
 
             if 'hidden_nodes' in scene_extras:
                 if nodeid in scene_extras['hidden_nodes']:
@@ -275,17 +271,16 @@ class Converter():
                 # If so, create a character just for this mesh.
                 if gltf_mesh.get('weights') and not charinfo:
                     mesh_name = gltf_mesh.get('name', 'mesh'+str(meshid))
-                    charinfo = Character(mesh_name)
                     charinfo = CharInfo(mesh_name)
                     self.build_character(charinfo, nodeid, gltf_data, recurse=False)
-                    charinfo.nodepath.reparent_to(np)
-
-                if charinfo:
-                    charinfo.nodepath.attach_new_node(mesh)
-                    self.combine_mesh_skin(mesh, charinfo)
                     self.combine_mesh_morphs(mesh, meshid, charinfo)
+                    charinfo.nodepath.reparent_to(np)
+                    charinfo.nodepath.attach_new_node(mesh)
                 else:
                     np.attach_new_node(mesh)
+                    if charinfo:
+                        self.combine_mesh_skin(mesh, charinfo)
+                        self.combine_mesh_morphs(mesh, meshid, charinfo)
 
             if 'camera' in gltf_node:
                 camid = gltf_node['camera']
@@ -1217,6 +1212,8 @@ class Converter():
     def build_character(self, charinfo: CharInfo, nodeid, gltf_data, recurse=True):
         char = charinfo.character
         affected_nodeids = set()
+        jvtmap = charinfo.jvtmap
+        cvsmap = charinfo.cvsmap
 
         for bundle in char.bundles:
             bundle.frame_blend_flag = True
@@ -1233,12 +1230,12 @@ class Converter():
                 child_set = list(itertools.chain(*[node.get('children', []) for node in joint_nodes]))
                 root_nodeids = [nodeid for nodeid in gltf_skin['joints'] if nodeid not in child_set]
 
-            charinfo.jvtmap.update(self.build_character_joints(char, root_nodeids,
-                                                               affected_nodeids, skinid,
-                                                               gltf_data))
+            jvtmap.update(self.build_character_joints(char, root_nodeids,
+                                                      affected_nodeids, skinid,
+                                                      gltf_data))
 
-        charinfo.cvsmap.update(self.build_character_sliders(char, nodeid, affected_nodeids,
-                                                            gltf_data, recurse=recurse))
+        cvsmap.update(self.build_character_sliders(char, nodeid, affected_nodeids,
+                                                   gltf_data, recurse=recurse))
 
         # Find animations that affect the collected nodes.
         #print("Looking for actions for", skinname, node_ids)
@@ -1282,10 +1279,10 @@ class Converter():
                     self.build_animation_skeleton(char, skeleton, root_nodeid,
                                                   num_frames, gltf_anim, gltf_data)
 
-            # if cvsmap and any(chan['target']['path'] == 'weights' for chan in channels):
-            #     morph = AnimGroup(bundle, 'morph')
-            #     self.build_animation_morph(morph, nodeid, num_frames, gltf_anim,
-            #                                gltf_data, recurse=recurse)
+            if cvsmap and any(chan['target']['path'] == 'weights' for chan in channels):
+                morph = AnimGroup(bundle, 'morph')
+                self.build_animation_morph(morph, nodeid, num_frames, gltf_anim,
+                                           gltf_data, recurse=recurse)
 
             char.add_child(AnimBundleNode(char.name, bundle))
 
