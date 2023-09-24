@@ -107,6 +107,24 @@ class Converter():
         5: GeomTristrips,
         6: GeomTrifans,
     }
+    _MAG_FILTER_MAP = {
+        9728: SamplerState.FT_nearest,
+        9729: SamplerState.FT_linear,
+    }
+    _MIN_FILTER_MAP = {
+        9728: SamplerState.FT_nearest,
+        9729: SamplerState.FT_linear,
+        9984: SamplerState.FT_nearest_mipmap_nearest,
+        9985: SamplerState.FT_linear_mipmap_nearest,
+        9986: SamplerState.FT_nearest_mipmap_linear,
+        9987: SamplerState.FT_linear_mipmap_linear,
+    }
+    _WRAP_MODE_MAP = {
+        10497: SamplerState.WM_repeat,
+        33071: SamplerState.WM_clamp,
+        33648: SamplerState.WM_mirror,
+    }
+
 
     def __init__(
             self,
@@ -577,59 +595,46 @@ class Converter():
 
         if 'sampler' in gltf_tex:
             gltf_sampler = gltf_data['samplers'][gltf_tex['sampler']]
-            if 'magFilter' in gltf_sampler:
-                if gltf_sampler['magFilter'] == 9728:
-                    texture.set_magfilter(SamplerState.FT_nearest)
-                elif gltf_sampler['magFilter'] == 9729:
-                    texture.set_magfilter(SamplerState.FT_linear)
-                else:
+            gltf_magfilter = gltf_sampler.get('magFilter', None)
+            if gltf_magfilter:
+                try:
+                    magfilter = self._MAG_FILTER_MAP[gltf_magfilter]
+                    texture.set_magfilter(magfilter)
+                except KeyError:
                     print(
                         "Sampler {} has unsupported magFilter type {}"
                         .format(gltf_tex['sampler'], gltf_sampler['magFilter'])
                     )
-            if 'minFilter' in gltf_sampler:
-                if gltf_sampler['minFilter'] == 9728:
-                    texture.set_minfilter(SamplerState.FT_nearest)
-                elif gltf_sampler['minFilter'] == 9729:
-                    texture.set_minfilter(SamplerState.FT_linear)
-                elif gltf_sampler['minFilter'] == 9984:
-                    texture.set_minfilter(SamplerState.FT_nearest_mipmap_nearest)
-                elif gltf_sampler['minFilter'] == 9985:
-                    texture.set_minfilter(SamplerState.FT_linear_mipmap_nearest)
-                elif gltf_sampler['minFilter'] == 9986:
-                    texture.set_minfilter(SamplerState.FT_nearest_mipmap_linear)
-                elif gltf_sampler['minFilter'] == 9987:
-                    texture.set_minfilter(SamplerState.FT_linear_mipmap_linear)
-                else:
+
+            gltf_minfilter = gltf_sampler.get('minFilter', None)
+            if gltf_minfilter:
+                try:
+                    minfilter = self._MIN_FILTER_MAP[gltf_minfilter]
+                    texture.set_minfilter(minfilter)
+                except KeyError:
                     print(
                         "Sampler {} has unsupported minFilter type {}"
                         .format(gltf_tex['sampler'], gltf_sampler['minFilter'])
                     )
 
-            wraps = gltf_sampler.get('wrapS', 10497)
-            if wraps == 33071:
-                texture.set_wrap_u(SamplerState.WM_clamp)
-            elif wraps == 33648:
-                texture.set_wrap_u(SamplerState.WM_mirror)
-            elif wraps == 10497:
-                texture.set_wrap_u(SamplerState.WM_repeat)
-            else:
+            gltf_wraps = gltf_sampler.get('wrapS', 10497)
+            try:
+                wraps = self._WRAP_MODE_MAP[gltf_wraps]
+                texture.set_wrap_u(wraps)
+            except KeyError:
                 print(
                     "Sampler {} has unsupported wrapS type {}"
-                    .format(gltf_tex['sampler'], gltf_sampler['wrapS'])
+                    .format(gltf_tex['sampler'], gltf_wraps)
                 )
 
-            wrapt = gltf_sampler.get('wrapT', 10497)
-            if wrapt == 33071:
-                texture.set_wrap_v(SamplerState.WM_clamp)
-            elif wrapt == 33648:
-                texture.set_wrap_v(SamplerState.WM_mirror)
-            elif wrapt == 10497:
-                texture.set_wrap_v(SamplerState.WM_repeat)
-            else:
+            gltf_wrapt = gltf_sampler.get('wrapT', 10497)
+            try:
+                wrapt = self._WRAP_MODE_MAP[gltf_wrapt]
+                texture.set_wrap_v(wrapt)
+            except KeyError:
                 print(
                     "Sampler {} has unsupported wrapT type {}"
-                    .format(gltf_tex['sampler'], gltf_sampler['wrapT'])
+                    .format(gltf_tex['sampler'], gltf_wrapt)
                 )
 
         self.textures[texid] = texture
