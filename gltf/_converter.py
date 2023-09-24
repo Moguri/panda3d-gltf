@@ -1577,25 +1577,14 @@ class Converter():
             scale_vals[1].append(frame_scale[1])
             scale_vals[2].append(frame_scale[2])
 
-        # If all frames are the same, we only need to store one frame.
-        if min(loc_vals[0]) == max(loc_vals[0]) and \
-           min(loc_vals[1]) == max(loc_vals[1]) and \
-           min(loc_vals[2]) == max(loc_vals[2]) and \
-           min(rot_vals[0]) == max(rot_vals[0]) and \
-           min(rot_vals[1]) == max(rot_vals[1]) and \
-           min(rot_vals[2]) == max(rot_vals[2]) and \
-           min(scale_vals[0]) == max(scale_vals[0]) and \
-           min(scale_vals[1]) == max(scale_vals[1]) and \
-           min(scale_vals[2]) == max(scale_vals[2]):
-            loc_vals[0] = loc_vals[0][:1]
-            loc_vals[1] = loc_vals[1][:1]
-            loc_vals[2] = loc_vals[2][:1]
-            rot_vals[0] = rot_vals[0][:1]
-            rot_vals[1] = rot_vals[1][:1]
-            rot_vals[2] = rot_vals[2][:1]
-            scale_vals[0] = scale_vals[0][:1]
-            scale_vals[1] = scale_vals[1][:1]
-            scale_vals[2] = scale_vals[2][:1]
+        # if all values for a given channel are close enough, we can use the first value for
+        # all frames and save some space
+        def almost_equal(val1, val2):
+            return abs(val2 - val1) < 0.00001
+        for val_arrays in [loc_vals, rot_vals, scale_vals]:
+            for val_array in val_arrays:
+                if almost_equal(min(val_array), max(val_array)):
+                    val_array[:] = val_array[:1]
 
         # Write data to tables
         group.set_table(b'x', CPTA_stdfloat(PTA_stdfloat(loc_vals[0])))
