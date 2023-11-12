@@ -22,7 +22,6 @@ classifiers = [
 ]
 dependencies = [
     "panda3d >= 1.10.8",
-    "panda3d-simplepbr >= 0.6",
 ]
 requires-python = ">= 3.8"
 
