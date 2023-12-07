@@ -6,7 +6,7 @@ import itertools
 import os
 import math
 import struct
-import urllib
+import urllib.parse
 import pprint # pylint: disable=unused-import
 
 from dataclasses import dataclass
