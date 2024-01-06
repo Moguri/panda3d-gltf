@@ -18,6 +18,7 @@ def _config_var_for_type(var_type):
     return {
         'str': p3d.ConfigVariableString,
         'bool': p3d.ConfigVariableBool,
+        'int': p3d.ConfigVariableInt,
     }.get(var_type, None)
 
 

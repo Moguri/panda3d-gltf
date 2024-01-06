@@ -36,6 +36,7 @@ class GltfSettings:
     legacy_materials: bool = False
     skip_animations: bool = False
     flatten_nodes: bool = False
+    animation_fps: int = 30
 
 
 def get_extras(gltf_data):
@@ -44,6 +45,50 @@ def get_extras(gltf_data):
         # weird, but legal; fail silently for now
         return {}
     return extras
+
+def vlerp(veca: p3d.LVector3, vecb: p3d.LVector3, factor: float) -> p3d.LVector3:
+    return veca * (1.0 - factor) + vecb * factor
+
+
+def slerp(quata: p3d.LQuaternion, quatb: p3d.LQuaternion, factor: float) -> p3d.LQuaternion:
+    dot_product = quata.dot(quatb)
+
+    if dot_product < 0.0:
+        # take shorted path for negative dot product
+        quata = -quata
+        dot_product = -dot_product
+
+    if dot_product > 0.9995:
+        # close enough; just lerp
+        retval = quata * (1.0 - factor) + quatb * factor
+        retval.normalize()
+        return retval
+
+    # spherical linear interpolation
+    theta0 = math.acos(dot_product)
+    theta = factor * theta0
+    sin_theta = math.sin(theta)
+    sin_theta0 = math.sin(theta0)
+
+    scale_quata = math.cos(theta) - dot_product * sin_theta / sin_theta0
+    scale_quatb = sin_theta / sin_theta0
+
+    return quata * scale_quata + quatb * scale_quatb
+
+
+def get_next_time_index(currtime: float, time_buffer: list[float]) -> int:
+    nextidx = 1
+    nexttime = time_buffer[nextidx]
+    while currtime > nexttime and nextidx < len(time_buffer):
+        nextidx += 1
+        nexttime = time_buffer[nextidx]
+
+    return nextidx
+
+
+def get_lerp_factor(currtime: float, lasttime: float, nexttime: float) -> float:
+    return max((currtime - lasttime) / (nexttime - lasttime), 1)
+
 
 @dataclass
 class CharInfo:
@@ -68,6 +113,15 @@ class Converter():
         5124: GeomEnums.NT_int32,
         5125: GeomEnums.NT_uint32,
         5126: GeomEnums.NT_float32,
+    }
+    _COMPONENT_FORMT_STR_MAP = {
+        5120: 'b',
+        5121: 'B',
+        5122: 'h',
+        5123: 'H',
+        5124: 'i',
+        5125: 'I',
+        5126: 'f',
     }
     _COMPONENT_SIZE_MAP = {
         5120: 1,
@@ -506,10 +560,40 @@ class Converter():
         buff = self.buffers[buffview['buffer']]
         start = buffview.get('byteOffset', 0)
         end = start + buffview['byteLength']
-        if 'byteStride' in buffview:
-            return memoryview(buff)[start:end:buffview['byteStride']]
-        else:
-            return memoryview(buff)[start:end]
+        stride = buffview.get('byteStride', 1)
+        return memoryview(buff)[start:end:stride]
+
+    def get_buffer_from_accessor(self, gltf_data, accid):
+        acc = gltf_data['accessors'][accid]
+        viewid = acc['bufferView']
+        buff_view = self.get_buffer_view(gltf_data, viewid)
+        if 'byteOffset' in acc:
+            buff_view = buff_view[acc['byteOffset']:]
+
+        formatstr = (
+            self._COMPONENT_FORMT_STR_MAP[acc['componentType']]
+            * self._COMPONENT_NUM_MAP[acc['type']]
+        )
+
+        convertfn = lambda x: x
+
+        acctype = acc['type']
+        if acctype == 'SCALAR':
+            convertfn = lambda x: x[0]
+        elif acctype == 'VEC2':
+            convertfn = lambda x: p3d.LVector2(*x)
+        elif acctype == 'VEC3':
+            convertfn = lambda x: p3d.LVector3(*x)
+        elif acctype == 'VEC4':
+            convertfn = lambda x: p3d.LVector4(*x)
+
+        element_size = (
+            self._COMPONENT_SIZE_MAP[acc['componentType']]
+            * self._COMPONENT_NUM_MAP[acc['type']]
+        )
+        end = acc['count'] * element_size
+
+        return list(map(convertfn, struct.iter_unpack(f'<{formatstr}', buff_view[:end])))
 
     def make_texture_srgb(self, texture):
         if self.settings.no_srgb:
@@ -1260,20 +1344,17 @@ class Converter():
             samplers = gltf_anim['samplers']
             channels = gltf_anim['channels']
 
-            # Blender exports the same number of elements in each time parameter, so find
-            # one and assume that the number of elements is the number of frames
-            time_acc_id = samplers[0]['input']
-            time_acc = gltf_data['accessors'][time_acc_id]
-            time_bv = gltf_data['bufferViews'][time_acc['bufferView']]
-            start = time_acc.get('byteOffset', 0) + time_bv.get('byteOffset', 0)
-            end = start + time_acc['count'] * 4
+            time_acc_ids = list({i['input'] for i in samplers})
             time_data = [
-                struct.unpack_from('<f', self.buffers[time_bv['buffer']], idx)[0]
-                for idx in range(start, end, 4)
+                list(self.get_buffer_from_accessor(
+                    gltf_data,
+                    accid
+                ))
+                for accid in time_acc_ids
             ]
-            num_frames = time_acc['count']
-            end_time = time_data[-1]
-            fps = num_frames / time_data[-1] if end_time != 0 else 24
+            max_time = max([max(i) for i in time_data])
+            fps = self.settings.animation_fps
+            num_frames = max(math.ceil(max_time * fps), 1)
 
             bundle_name = anim_name
             bundle = AnimBundle(bundle_name, fps, num_frames)
@@ -1485,7 +1566,6 @@ class Converter():
         return cvsmap
 
     def build_animation_skeleton(self, character, parent, boneid, num_frames, gltf_anim, gltf_data):
-        samplers = gltf_anim['samplers']
         bone = gltf_data['nodes'][boneid]
         bone_name = bone.get('name', 'bone'+str(boneid))
         channels = [chan for chan in gltf_anim['channels'] if chan['target']['node'] == boneid]
@@ -1493,73 +1573,90 @@ class Converter():
 
         group = AnimChannelMatrixXfmTable(parent, bone_name)
 
-        def get_accessor(path):
-            accessors = [
-                gltf_data['accessors'][samplers[chan['sampler']]['output']]
+        def extract_chan_data(path):
+            samplers = [
+                gltf_anim['samplers'][chan['sampler']]
                 for chan in channels
                 if chan['target']['path'] == path
             ]
-
-            return accessors[0] if accessors else None
-
-        def extract_chan_data(path):
-            acc = get_accessor(path)
-            if not acc:
+            if not samplers:
                 return None
+            sampler = samplers[0]
 
-            buff_view = gltf_data['bufferViews'][acc['bufferView']]
-            buff_data = self.buffers[buff_view['buffer']]
-            start = acc.get('byteOffset', 0) + buff_view.get('byteOffset', 0)
+            accid = sampler['output']
+            output_buff = list(self.get_buffer_from_accessor(gltf_data, accid))
 
             if path == 'rotation':
-                end = start + acc['count'] * 4 * 4
-                data = [struct.unpack_from('<ffff', buff_data, idx) for idx in range(start, end, 4 * 4)]
-            else:
-                end = start + acc['count'] * 3 * 4
-                data = [struct.unpack_from('<fff', buff_data, idx) for idx in range(start, end, 3 * 4)]
+                output_buff = [p3d.LQuaternion(x[3], x[0], x[1], x[2]) for x in output_buff]
 
-            return data
+            accid = sampler['input']
+            input_buff = self.get_buffer_from_accessor(gltf_data, accid)
+
+            interpolation_mode = sampler.get('interpolation', 'LINEAR')
+            if interpolation_mode == 'CUBICSPLINE':
+                print(
+                    f'Warning: CUBICSPLINE interpolation mode for {bone_name}:{path} is not supported, '
+                    'falling back to LINEAR'
+                )
+                interpolation_mode = 'LINEAR'
+            return list(input_buff), list(output_buff), interpolation_mode
 
         # Create default animaton data
         translation = LVector3()
-        rotation = LVector3()
+        rotation_vec = LVector3()
         scale = LVector3()
-        decompose_matrix(self.csxform * joint_mat * self.csxform_inv, scale, rotation, translation, CS_yup_right)
+        decompose_matrix(self.csxform * joint_mat * self.csxform_inv, scale, rotation_vec, translation, CS_yup_right)
+        rotation = LQuaternion()
+        rotation.set_hpr(rotation_vec, CS_yup_right)
 
         # Override defaults with any found animation data
-        loc_data = extract_chan_data('translation')
-        rot_data = extract_chan_data('rotation')
-        scale_data = extract_chan_data('scale')
+        default_anim_data = {
+            'translation': translation,
+            'rotation': rotation,
+            'scale': scale,
+        }
+        anim_data = {
+            path: extract_chan_data(path)
+            for path in ['translation', 'rotation', 'scale']
+        }
 
         loc_vals = [[], [], []]
         rot_vals = [[], [], []]
         scale_vals = [[], [], []]
 
-        # Repeat last frame if we don't have enough data for all frames.
-        if loc_data and len(loc_data) < num_frames:
-            loc_data += loc_data[-1:] * (num_frames - len(loc_data))
-        if rot_data and len(rot_data) < num_frames:
-            rot_data += rot_data[-1:] * (num_frames - len(rot_data))
-        if scale_data and len(scale_data) < num_frames:
-            scale_data += scale_data[-1:] * (num_frames - len(scale_data))
+        def calculate_frame_value(frame, path):
+            currtime = frame / self.settings.animation_fps
+            if not anim_data[path]:
+                return default_anim_data[path]
+
+            input_buff, output_buff, interpolation_mode = anim_data[path]
+
+            if len(input_buff) == 1:
+                # no need to interpolate, just return the value
+                return output_buff[0]
+
+            nextidx = get_next_time_index(currtime, input_buff)
+            lastidx = nextidx - 1
+
+            if interpolation_mode == 'STEP':
+                return output_buff[lastidx]
+            elif interpolation_mode == 'LINEAR':
+                nexttime = input_buff[nextidx]
+                lasttime = input_buff[lastidx]
+                lerpfactor = get_lerp_factor(currtime, lasttime, nexttime)
+
+                if path == 'rotation':
+                    return slerp(output_buff[lastidx], output_buff[nextidx], lerpfactor)
+                return vlerp(output_buff[lastidx], output_buff[nextidx], lerpfactor)
+            else:
+                return RuntimeError(
+                    f'Unrecognized interpolation mode ({interpolation_mode}) found on {bone_name}:{path}'
+                )
 
         for i in range(num_frames):
-            if scale_data:
-                frame_scale = scale_data[i]
-            else:
-                frame_scale = scale
-
-            if rot_data:
-                quat = rot_data[i]
-                frame_rotation = LQuaternion(quat[3], quat[0], quat[1], quat[2])
-            else:
-                frame_rotation = LQuaternion()
-                frame_rotation.set_hpr(rotation, CS_yup_right)
-
-            if loc_data:
-                frame_translation = loc_data[i]
-            else:
-                frame_translation = translation
+            frame_translation = calculate_frame_value(i, 'translation')
+            frame_rotation = calculate_frame_value(i, 'rotation')
+            frame_scale = calculate_frame_value(i, 'scale')
 
             mat = LMatrix4(LMatrix4.ident_mat())
             mat *= LMatrix4.scale_mat(frame_scale)
@@ -1611,53 +1708,67 @@ class Converter():
             self.build_animation_skeleton(character, group, childid, num_frames, gltf_anim, gltf_data)
 
     def build_animation_morph(self, parent, nodeid, num_frames, gltf_anim, gltf_data, recurse=True):
-        samplers = gltf_anim['samplers']
-
         def create_channels(parent, nodeid, target_names, default_weights):
             channels = [
                 chan for chan in gltf_anim['channels']
                 if chan['target']['node'] == nodeid and chan['target']['path'] == 'weights'
             ]
 
-            accessors = [
-                gltf_data['accessors'][samplers[chan['sampler']]['output']]
+            samplers = [
+                gltf_anim['samplers'][chan['sampler']]
                 for chan in channels
                 if chan['target']['path'] == 'weights'
             ]
 
-            if accessors:
-                acc = accessors[0]
-                buff_view = gltf_data['bufferViews'][acc['bufferView']]
-                buff_data = self.buffers[buff_view['buffer']]
-                start = acc.get('byteOffset', 0) + buff_view.get('byteOffset', 0)
-
-                end = start + acc['count'] * 4
-                weights = list(CPTAFloat(buff_data[start:end]))
+            if samplers:
+                sampler = samplers[0]
+                buff_data = self.get_buffer_from_accessor(gltf_data, sampler['output'])
+                weights = list(CPTAFloat(buff_data))
+                time_data = self.get_buffer_from_accessor(gltf_data, sampler['input'])
+                interpolation_mode = sampler.get('interpolation', 'LINEAR')
+                if interpolation_mode == 'CUBICSPLINE':
+                    print(
+                        'Warning: CUBICSPLINE interpolation mode for morph targets is not supported, '
+                        'falling back to LINEAR'
+                    )
+                    interpolation_mode = 'LINEAR'
             else:
                 weights = default_weights
+                time_data = [0]
+                interpolation_mode = 'STEP'
 
             num_targets = len(default_weights)
 
             for i, target_name in enumerate(target_names):
-                try:
-                    group = AnimChannelScalarTable(parent, target_name)
-                except TypeError:
-                    # Panda version too old, requires at least 1.10.6.dev5
-                    return
+                group = AnimChannelScalarTable(parent, target_name)
 
                 target_weights = weights[i::num_targets]
+                interpolated_weights = []
 
-                if min(target_weights) == max(target_weights):
+                if len(time_data) == 1 or min(target_weights) == max(target_weights):
                     # If all frames are the same, we only need to store one frame.
-                    target_weights = target_weights[:1]
-                elif len(target_weights) > 1 and len(target_weights) < num_frames:
-                    # If we don't have enough frames, repeat the last value.
-                    target_weights += target_weights[-1:] * (num_frames - len(target_weights))
-                elif len(target_weights) > num_frames:
-                    # We have too many frames.
-                    target_weights = target_weights[:num_frames]
+                    interpolated_weights = target_weights[:1]
+                else:
+                    for frame in range(num_frames):
+                        currtime = frame / self.settings.animation_fps
+                        nextidx = get_next_time_index(currtime, time_data)
+                        lastidx = nextidx - 1
+                        if interpolation_mode == 'STEP':
+                            interpolated_weights.append(target_weights[lastidx])
+                        elif interpolation_mode == 'LINEAR':
+                            lasttime = time_data[lastidx]
+                            nexttime = time_data[nextidx]
+                            lerpfactor = get_lerp_factor(currtime, lasttime, nexttime)
+                            interpolated_weights.append(
+                                target_weights[lastidx] * (1 - lerpfactor)
+                                + target_weights[nextidx] * lerpfactor
+                            )
+                        else:
+                            return RuntimeError(
+                                f'Unrecognized interpolation mode ({interpolation_mode}) found on {target_name}'
+                            )
 
-                group.set_table(CPTA_stdfloat(target_weights))
+                group.set_table(CPTA_stdfloat(interpolated_weights))
 
         gltf_node = gltf_data['nodes'][nodeid]
 
