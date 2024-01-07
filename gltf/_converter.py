@@ -563,7 +563,7 @@ class Converter():
         stride = buffview.get('byteStride', 1)
         return memoryview(buff)[start:end:stride]
 
-    def get_buffer_from_accessor(self, gltf_data, accid):
+    def get_buffer_from_accessor(self, gltf_data, accid, unpack=True):
         acc = gltf_data['accessors'][accid]
         viewid = acc['bufferView']
         buff_view = self.get_buffer_view(gltf_data, viewid)
@@ -592,8 +592,12 @@ class Converter():
             * self._COMPONENT_NUM_MAP[acc['type']]
         )
         end = acc['count'] * element_size
+        buffdata = buff_view[:end]
 
-        return list(map(convertfn, struct.iter_unpack(f'<{formatstr}', buff_view[:end])))
+        if unpack:
+            return list(map(convertfn, struct.iter_unpack(f'<{formatstr}', buffdata)))
+        else:
+            return buffdata
 
     def make_texture_srgb(self, texture):
         if self.settings.no_srgb:
@@ -1134,17 +1138,14 @@ class Converter():
             return
 
         if 'indices' in gltf_primitive:
-            index_acc = gltf_data['accessors'][gltf_primitive['indices']]
+            index_accid = gltf_primitive['indices']
+            index_acc = gltf_data['accessors'][index_accid]
+            num_elements = index_acc['count']
             prim.set_index_type(self._COMPONENT_TYPE_MAP[index_acc['componentType']])
 
-            handle = prim.modify_vertices(index_acc['count']).modify_handle()
-            handle.unclean_set_num_rows(index_acc['count'])
-
-            buffview = gltf_data['bufferViews'][index_acc['bufferView']]
-            buff = self.buffers[buffview['buffer']]
-            start = buffview.get('byteOffset', 0) + index_acc.get('byteOffset', 0)
-            end = start + index_acc['count'] * buffview.get('byteStride', 1) * prim.index_stride
-            handle.copy_data_from(buff[start:end])
+            handle = prim.modify_vertices(num_elements).modify_handle()
+            handle.unclean_set_num_rows(num_elements)
+            handle.copy_data_from(self.get_buffer_from_accessor(gltf_data, index_accid, unpack=False))
             handle = None
         else:
             index_acc = gltf_data['accessors'][gltf_primitive['attributes']["POSITION"]]
@@ -1460,16 +1461,10 @@ class Converter():
 
         bind_mats = {}
         if 'inverseBindMatrices' in gltf_skin:
-            ibmacc = gltf_data['accessors'][gltf_skin['inverseBindMatrices']]
-            ibmbv = gltf_data['bufferViews'][ibmacc['bufferView']]
-            start = ibmacc.get('byteOffset', 0) + ibmbv.get('byteOffset', 0)
-            end = start + ibmacc['count'] * 16 * 4
-            ibmdata = self.buffers[ibmbv['buffer']][start:end]
+            ibmdata = self.get_buffer_from_accessor(gltf_data, gltf_skin['inverseBindMatrices'])
 
-            for i in range(ibmacc['count']):
-                mat = struct.unpack_from('<{}'.format('f'*16), ibmdata, i * 16 * 4)
-                #print('loaded', mat)
-                mat = self.load_matrix(mat)
+            for i, matdata in enumerate(ibmdata):
+                mat = self.load_matrix(matdata)
                 mat.invert_in_place()
                 bind_mats[i] = mat
 
