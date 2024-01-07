@@ -20,6 +20,19 @@ except ImportError:
     HAVE_BULLET = False
 from direct.stdpy.file import open # pylint: disable=redefined-builtin
 
+from ._converter_maps import (
+    ATTRIB_CONTENT_MAP,
+    ATTRIB_NAME_MAP,
+    COMPONENT_FORMT_STR_MAP,
+    COMPONENT_NUM_MAP,
+    COMPONENT_SIZE_MAP,
+    COMPONENT_TYPE_MAP,
+    MAG_FILTER_MAP,
+    MIN_FILTER_MAP,
+    PRIMITIVE_MODE_MAP,
+    WRAP_MODE_MAP,
+)
+
 if LVector3 is LVector3f:
     CPTA_stdfloat = CPTA_float
     PTA_stdfloat = PTA_float
@@ -105,79 +118,6 @@ class CharInfo:
 
 
 class Converter():
-    _COMPONENT_TYPE_MAP = {
-        5120: GeomEnums.NT_int8,
-        5121: GeomEnums.NT_uint8,
-        5122: GeomEnums.NT_int16,
-        5123: GeomEnums.NT_uint16,
-        5124: GeomEnums.NT_int32,
-        5125: GeomEnums.NT_uint32,
-        5126: GeomEnums.NT_float32,
-    }
-    _COMPONENT_FORMT_STR_MAP = {
-        5120: 'b',
-        5121: 'B',
-        5122: 'h',
-        5123: 'H',
-        5124: 'i',
-        5125: 'I',
-        5126: 'f',
-    }
-    _COMPONENT_SIZE_MAP = {
-        5120: 1,
-        5121: 1,
-        5122: 2,
-        5123: 2,
-        5124: 4,
-        5125: 4,
-        5126: 4,
-    }
-    _COMPONENT_NUM_MAP = {
-        'MAT4': 16,
-        'VEC4': 4,
-        'VEC3': 3,
-        'VEC2': 2,
-        'SCALAR': 1,
-    }
-    _ATTRIB_CONTENT_MAP = {
-        'vertex': GeomEnums.C_point,
-        'normal': GeomEnums.C_normal,
-        'tangent': GeomEnums.C_other,
-        'texcoord': GeomEnums.C_texcoord,
-        'color': GeomEnums.C_color,
-        'transform_weight': GeomEnums.C_other,
-        'transform_index': GeomEnums.C_index,
-    }
-    _ATTRIB_NAME_MAP = {
-        'position': InternalName.get_vertex().get_name(),
-        'weights': InternalName.get_transform_weight().get_name(),
-        'joints': InternalName.get_transform_index().get_name(),
-    }
-    _PRIMITIVE_MODE_MAP = {
-        0: GeomPoints,
-        1: GeomLines,
-        3: GeomLinestrips,
-        4: GeomTriangles,
-        5: GeomTristrips,
-        6: GeomTrifans,
-    }
-    _MAG_FILTER_MAP = {
-        9728: SamplerState.FT_nearest,
-        9729: SamplerState.FT_linear,
-    }
-    _MIN_FILTER_MAP = {
-        9728: SamplerState.FT_nearest,
-        9729: SamplerState.FT_linear,
-        9984: SamplerState.FT_nearest_mipmap_nearest,
-        9985: SamplerState.FT_linear_mipmap_nearest,
-        9986: SamplerState.FT_nearest_mipmap_linear,
-        9987: SamplerState.FT_linear_mipmap_linear,
-    }
-    _WRAP_MODE_MAP = {
-        10497: SamplerState.WM_repeat,
-        33071: SamplerState.WM_clamp,
-        33648: SamplerState.WM_mirror,
-    }
 
 
     def __init__(
@@ -571,8 +511,8 @@ class Converter():
             buff_view = buff_view[acc['byteOffset']:]
 
         formatstr = (
-            self._COMPONENT_FORMT_STR_MAP[acc['componentType']]
-            * self._COMPONENT_NUM_MAP[acc['type']]
+            COMPONENT_FORMT_STR_MAP[acc['componentType']]
+            * COMPONENT_NUM_MAP[acc['type']]
         )
 
         convertfn = lambda x: x
@@ -588,8 +528,8 @@ class Converter():
             convertfn = lambda x: p3d.LVector4(*x)
 
         element_size = (
-            self._COMPONENT_SIZE_MAP[acc['componentType']]
-            * self._COMPONENT_NUM_MAP[acc['type']]
+            COMPONENT_SIZE_MAP[acc['componentType']]
+            * COMPONENT_NUM_MAP[acc['type']]
         )
         end = acc['count'] * element_size
         buffdata = buff_view[:end]
@@ -686,7 +626,7 @@ class Converter():
             gltf_magfilter = gltf_sampler.get('magFilter', None)
             if gltf_magfilter:
                 try:
-                    magfilter = self._MAG_FILTER_MAP[gltf_magfilter]
+                    magfilter = MAG_FILTER_MAP[gltf_magfilter]
                     texture.set_magfilter(magfilter)
                 except KeyError:
                     print(
@@ -697,7 +637,7 @@ class Converter():
             gltf_minfilter = gltf_sampler.get('minFilter', None)
             if gltf_minfilter:
                 try:
-                    minfilter = self._MIN_FILTER_MAP[gltf_minfilter]
+                    minfilter = MIN_FILTER_MAP[gltf_minfilter]
                     texture.set_minfilter(minfilter)
                 except KeyError:
                     print(
@@ -707,7 +647,7 @@ class Converter():
 
             gltf_wraps = gltf_sampler.get('wrapS', 10497)
             try:
-                wraps = self._WRAP_MODE_MAP[gltf_wraps]
+                wraps = WRAP_MODE_MAP[gltf_wraps]
                 texture.set_wrap_u(wraps)
             except KeyError:
                 print(
@@ -717,7 +657,7 @@ class Converter():
 
             gltf_wrapt = gltf_sampler.get('wrapT', 10497)
             try:
-                wrapt = self._WRAP_MODE_MAP[gltf_wrapt]
+                wrapt = WRAP_MODE_MAP[gltf_wrapt]
                 texture.set_wrap_v(wrapt)
             except KeyError:
                 print(
@@ -973,15 +913,15 @@ class Converter():
             for acc in accs:
                 # Gather column information
                 attrib_parts = acc['_attrib'].lower().split('_')
-                attrib_name = self._ATTRIB_NAME_MAP.get(attrib_parts[0], attrib_parts[0])
+                attrib_name = ATTRIB_NAME_MAP.get(attrib_parts[0], attrib_parts[0])
                 if attrib_name == 'texcoord' and len(attrib_parts) > 1:
                     internal_name = InternalName.make(attrib_name+'.', int(attrib_parts[1]))
                 else:
                     internal_name = InternalName.make(attrib_name)
-                num_components = self._COMPONENT_NUM_MAP[acc['type']]
-                numeric_type = self._COMPONENT_TYPE_MAP[acc['componentType']]
-                numeric_size = self._COMPONENT_SIZE_MAP[acc['componentType']]
-                content = self._ATTRIB_CONTENT_MAP.get(attrib_name, GeomEnums.C_other)
+                num_components = COMPONENT_NUM_MAP[acc['type']]
+                numeric_type = COMPONENT_TYPE_MAP[acc['componentType']]
+                numeric_size = COMPONENT_SIZE_MAP[acc['componentType']]
+                content = ATTRIB_CONTENT_MAP.get(attrib_name, GeomEnums.C_other)
                 size = numeric_size * num_components
 
                 if '_target' in acc:
@@ -1129,7 +1069,7 @@ class Converter():
         primitiveid = geom_node.get_num_geoms()
         primitivemode = gltf_primitive.get('mode', 4)
         try:
-            prim = self._PRIMITIVE_MODE_MAP[primitivemode](GeomEnums.UH_static)
+            prim = PRIMITIVE_MODE_MAP[primitivemode](GeomEnums.UH_static)
         except KeyError:
             print(
                 "Warning: primitive {} on mesh {} has an unsupported mode: {}"
@@ -1141,7 +1081,7 @@ class Converter():
             index_accid = gltf_primitive['indices']
             index_acc = gltf_data['accessors'][index_accid]
             num_elements = index_acc['count']
-            prim.set_index_type(self._COMPONENT_TYPE_MAP[index_acc['componentType']])
+            prim.set_index_type(COMPONENT_TYPE_MAP[index_acc['componentType']])
 
             handle = prim.modify_vertices(num_elements).modify_handle()
             handle.unclean_set_num_rows(num_elements)
