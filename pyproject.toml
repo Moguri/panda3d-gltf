@@ -30,7 +30,7 @@ requires-python = ">= 3.8"
 homepage = "https://github.com/Moguri/panda3d-gltf"
 
 [project.optional-dependencies]
-test = ["pytest", "pylint~=2.5.0", "pytest-pylint"]
+test = ["pytest", "pylint~=3.1.0", "pytest-pylint"]
 
 [project.scripts]
 gltf2bam = "gltf.cli:main"

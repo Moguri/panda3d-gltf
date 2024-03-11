@@ -58,5 +58,5 @@ def parse_gltf_file(filepath):
     if is_glb_file(filepath):
         return parse_glb_file(filepath)
 
-    with open(filepath) as gltffile:
+    with open(filepath, encoding='utf8') as gltffile:
         return parse_gltf_data(gltffile)

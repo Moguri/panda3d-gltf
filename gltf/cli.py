@@ -32,7 +32,7 @@ def main():
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s {}'.format(__version__)
+        version=f'%(prog)s {__version__}'
     )
 
     parser.add_argument(

@@ -89,7 +89,7 @@ def slerp(quata: p3d.LQuaternion, quatb: p3d.LQuaternion, factor: float) -> p3d.
     return quata * scale_quata + quatb * scale_quatb
 
 
-def get_next_time_index(currtime: float, time_buffer: list[float]) -> int:
+def get_next_time_index(currtime: float, time_buffer: 'list[float]') -> int:
     nextidx = 1
     nexttime = time_buffer[nextidx]
     while currtime > nexttime and nextidx < len(time_buffer):
@@ -223,7 +223,7 @@ class Converter():
             try:
                 gltf_node = gltf_data['nodes'][nodeid]
             except IndexError:
-                print("Could not find node with index: {}".format(nodeid))
+                print(f"Could not find node with index: {nodeid}")
                 return
             node_name = gltf_node.get('name', 'node'+str(nodeid))
 
@@ -242,7 +242,7 @@ class Converter():
             try:
                 gltf_node = gltf_data['nodes'][nodeid]
             except IndexError:
-                print("Could not find node with index: {}".format(nodeid))
+                print(f"Could not find node with index: {nodeid}")
                 return
 
             skinid = self.skeletons.get(nodeid, None)
@@ -346,8 +346,7 @@ class Converter():
                             geomnode = self.meshes[collision_shape['mesh']]
                         except KeyError:
                             print(
-                                "Could not find physics mesh ({}) for object ({})"
-                                .format(collision_shape['mesh'], nodeid)
+                                f"Could not find physics mesh ({collision_shape['mesh']}) for object ({nodeid})"
                             )
                     if 'extensions' in gltf_data and 'BP_physics_engine' in gltf_data['extensions']:
                         use_bullet = (
@@ -422,7 +421,7 @@ class Converter():
             # Handle parenting to joints
             joint = self.joint_parents.get(nodeid)
             if joint:
-                xformnp = root.attach_new_node(PandaNode('{}-parent'.format(node_name)))
+                xformnp = root.attach_new_node(PandaNode(f'{node_name}-parent'))
                 np.reparent_to(xformnp)
                 joint.add_net_transform(xformnp.node())
 
@@ -489,8 +488,7 @@ class Converter():
                 buff_data = buff_file.read(gltf_buffer['byteLength'])
         else:
             print(
-                "Buffer {} has an unsupported uri ({}), using a zero filled buffer instead"
-                .format(buffid, uri)
+                "Buffer {buffid} has an unsupported uri ({uri}), using a zero filled buffer instead"
             )
             buff_data = bytearray(gltf_buffer['byteLength'])
         self.buffers[buffid] = buff_data
@@ -574,7 +572,7 @@ class Converter():
 
     def load_texture(self, texid, gltf_tex, gltf_data):
         if 'source' not in gltf_tex:
-            print("Texture '{}' has no source, skipping".format(texid))
+            print(f"Texture '{texid}' has no source, skipping")
             return
 
         def load_embedded_image(name, ext, data):
@@ -630,8 +628,7 @@ class Converter():
                     texture.set_magfilter(magfilter)
                 except KeyError:
                     print(
-                        "Sampler {} has unsupported magFilter type {}"
-                        .format(gltf_tex['sampler'], gltf_sampler['magFilter'])
+                        f"Sampler {gltf_tex['sampler']} has unsupported magFilter type {gltf_sampler['magFilter']}"
                     )
 
             gltf_minfilter = gltf_sampler.get('minFilter', None)
@@ -641,8 +638,7 @@ class Converter():
                     texture.set_minfilter(minfilter)
                 except KeyError:
                     print(
-                        "Sampler {} has unsupported minFilter type {}"
-                        .format(gltf_tex['sampler'], gltf_sampler['minFilter'])
+                        f"Sampler {gltf_tex['sampler']} has unsupported minFilter type {gltf_sampler['minFilter']}"
                     )
 
             gltf_wraps = gltf_sampler.get('wrapS', 10497)
@@ -651,8 +647,7 @@ class Converter():
                 texture.set_wrap_u(wraps)
             except KeyError:
                 print(
-                    "Sampler {} has unsupported wrapS type {}"
-                    .format(gltf_tex['sampler'], gltf_wraps)
+                    f"Sampler {gltf_tex['sampler']} has unsupported wrapS type {gltf_wraps}"
                 )
 
             gltf_wrapt = gltf_sampler.get('wrapT', 10497)
@@ -661,8 +656,7 @@ class Converter():
                 texture.set_wrap_v(wrapt)
             except KeyError:
                 print(
-                    "Sampler {} has unsupported wrapT type {}"
-                    .format(gltf_tex['sampler'], gltf_wrapt)
+                    f"Sampler {gltf_tex['sampler']} has unsupported wrapT type {gltf_wrapt}"
                 )
 
         self.textures[texid] = texture
@@ -767,7 +761,7 @@ class Converter():
         for i, texinfo in enumerate(texinfos):
             texdata = self.textures.get(texinfo['index'], None)
             if texdata is None:
-                print("Could not find texture for key: {}".format(texinfo['index']))
+                print(f"Could not find texture for key: {texinfo['index']}")
                 continue
 
             texstage = TextureStage(str(i))
@@ -822,8 +816,7 @@ class Converter():
             state = state.set_attrib(transp_attrib)
         elif alpha_mode != 'OPAQUE':
             print(
-                "Warning: material {} has an unsupported alphaMode: {}"
-                .format(matid, alpha_mode)
+                f"Warning: material {matid} has an unsupported alphaMode: {alpha_mode}"
             )
 
         # Remove stale meshes
@@ -1072,8 +1065,7 @@ class Converter():
             prim = PRIMITIVE_MODE_MAP[primitivemode](GeomEnums.UH_static)
         except KeyError:
             print(
-                "Warning: primitive {} on mesh {} has an unsupported mode: {}"
-                .format(primitiveid, geom_node.name, primitivemode)
+                f"Warning: primitive {primitiveid} on mesh {geom_node.name} has an unsupported mode: {primitivemode}"
             )
             return
 
@@ -1096,8 +1088,7 @@ class Converter():
         matid = gltf_primitive.get('material', None)
         if matid is None:
             print(
-                "Warning: mesh {} has a primitive with no material, using an empty RenderState"
-                .format(geom_node.name)
+                f"Warning: mesh {geom_node.name} has a primitive with no material, using an empty RenderState"
             )
             pmat = Material('fallback material')
             matattrib = MaterialAttrib.make(pmat)
@@ -1105,8 +1096,7 @@ class Converter():
             mat = RenderState.make(matattrib, texattrib)
         elif matid not in self.mat_states:
             print(
-                "Warning: material with name {} has no associated mat state, using an empty RenderState"
-                .format(matid)
+                f"Warning: material with name {matid} has no associated mat state, using an empty RenderState"
             )
             pmat = Material('fallback material')
             matattrib = MaterialAttrib.make(pmat)
@@ -1338,8 +1328,7 @@ class Converter():
                         jvt = jvtmap[joint]
                     except KeyError:
                         print(
-                            "Could not find joint in jvtmap:\n\tjoint={}\n\tjvtmap={}"
-                            .format(joint, jvtmap)
+                            f"Could not find joint in jvtmap:\n\tjoint={joint}\n\tjvtmap={jvtmap}"
                         )
                         # Don't warn again for this joint.
                         jvt = None
@@ -1764,7 +1753,7 @@ class Converter():
             elif ltype == 'spot':
                 node = Spotlight(lightname)
             else:
-                print("Unsupported light type for light with name {}: {}".format(lightname, gltf_light['type']))
+                print(f"Unsupported light type for light with name {lightname}: {gltf_light['type']}")
                 node = PandaNode(lightname)
 
         # Update the light
@@ -1838,7 +1827,7 @@ class Converter():
                     mesh.add_geom(geom)
                 shape = bullet.BulletTriangleMeshShape(mesh, dynamic=not static)
         else:
-            print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
+            print(f"Unknown collision shape ({shape_type}) for object ({node_name})")
 
         if shape is not None:
             if intangible:
@@ -1851,7 +1840,7 @@ class Converter():
                 phynode.set_mass(mass)
             return phynode
         else:
-            print("Could not create collision shape for object ({})".format(node_name))
+            print(f"Could not create collision shape for object ({node_name})")
 
     def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, intangible):
         phynode = CollisionNode(node_name)
@@ -1865,11 +1854,9 @@ class Converter():
         elif shape_type in ('CAPSULE', 'CYLINDER', 'CONE'):
             if shape_type != 'CAPSULE':
                 print(
-                    'Warning: builtin collisions do not support shape type {} for object {}, falling back to {}'.format(
-                        shape_type,
-                        node_name,
-                        'CAPSULE'
-                    ))
+                    f'Warning: builtin collisions do not support shape type {shape_type} for object {node_name}, '
+                    'falling back to CAPSULE'
+                )
             half_height = height / 2.0 - radius
             start = LPoint3(0, 0, -half_height)
             end = LPoint3(0, 0, half_height)
@@ -1877,11 +1864,9 @@ class Converter():
         elif shape_type in ('MESH', 'CONVEX_HULL'):
             if shape_type != 'MESH':
                 print(
-                    'Warning: builtin collisions do not support shape type {} for object {}, falling back to {}'.format(
-                        shape_type,
-                        node_name,
-                        'MESH'
-                    ))
+                    f'Warning: builtin collisions do not support shape type {shape_type} for object {node_name}, '
+                    'falling back to MESH'
+                )
             if geomnode:
                 for geom in geomnode.get_geoms():
                     vdata = self.read_vert_data(geom.get_vertex_data(), InternalName.get_vertex())
@@ -1954,7 +1939,7 @@ class Converter():
                     solids.extend(CollisionPolygon(*poly) for poly in polygons)
 
         else:
-            print("Unknown collision shape ({}) for object ({})".format(shape_type, node_name))
+            print(f"Unknown collision shape ({shape_type}) for object ({node_name})")
 
         for solid in solids:
             if intangible:
@@ -1964,4 +1949,4 @@ class Converter():
         if phynode.solids:
             return phynode
         else:
-            print("Could not create collision shape for object ({})".format(node_name))
+            print(f"Could not create collision shape for object ({node_name})")
