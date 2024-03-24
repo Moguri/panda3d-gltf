@@ -1,3 +1,4 @@
+from direct.actor.Actor import Actor
 import panda3d.core as p3d
 import pytest #pylint:disable=wrong-import-order
 
@@ -26,3 +27,12 @@ def test_load_prc(showbase, modelpath):
     scene = showbase.loader.load_model(modelpath, noCache=True)
     p3d.unload_prc_file(page)
     assert scene.find('**/+BulletRigidBodyNode')
+
+def test_load_actor(modelroot):
+    actor = Actor(p3d.Filename(modelroot, 'Fox.glb'))
+    assert actor
+
+    print(actor.getAnimNames())
+    assert 'Walk' in actor.getAnimNames()
+
+    actor.play('Walk')
