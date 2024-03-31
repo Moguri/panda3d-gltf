@@ -141,8 +141,9 @@ def main():
             texdst = os.path.join(outdir.to_os_specific(), fname)
 
             texture.fullpath = fname
-            os.makedirs(os.path.dirname(texdst), exist_ok=True)
-            shutil.copy(texsrc, texdst)
+            if texsrc != texdst:
+                os.makedirs(os.path.dirname(texdst), exist_ok=True)
+                shutil.copy(texsrc, texdst)
 
     if args.animations == 'separate':
         for bundlenode in converter.active_scene.find_all_matches('**/+AnimBundleNode'):
