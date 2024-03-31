@@ -607,8 +607,11 @@ class Converter():
                 texture = load_embedded_image(name, ext, data)
             else:
                 uri = urllib.parse.unquote(uri)
-                uri = Filename.from_os_specific(uri)
-                fulluri = Filename(self.filedir, uri)
+                fname = Filename.from_os_specific(uri)
+                if not os.path.isabs(uri):
+                    fulluri = Filename(self.filedir, uri)
+                else:
+                    fulluri = fname
                 texture = TexturePool.load_texture(fulluri, 0, False, LoaderOptions())
                 if not texture:
                     raise RuntimeError(f'failed to load texture: {fulluri}')
