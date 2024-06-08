@@ -33,6 +33,10 @@ from ._converter_maps import (
     WRAP_MODE_MAP,
 )
 
+
+# Taken from Blender glTF exporter
+PBR_WATTS_TO_LUMENS = 683
+
 if LVector3 is LVector3f:
     CPTA_stdfloat = CPTA_float
     PTA_stdfloat = PTA_float
@@ -1765,8 +1769,14 @@ class Converter():
             if hasattr(node, 'attenuation'):
                 node.attenuation = LVector3(1, 0, 1)
 
+            intensity = gltf_light.get('intensity', 1) / PBR_WATTS_TO_LUMENS
+            if ltype != 'directional':
+                intensity *= 4 * math.pi
+
+            # intensity = gltf_light.get('intensity', 1)
+
             if 'color' in gltf_light:
-                node.set_color(LColor(*gltf_light['color'], w=1) * gltf_light.get('intensity', 1))
+                node.set_color(LColor(*gltf_light['color'], w=1) * intensity)
             if 'range' in gltf_light:
                 node.max_distance = gltf_light['range']
             if ltype == 'spot':

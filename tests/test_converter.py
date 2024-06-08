@@ -42,3 +42,18 @@ def test_skin_char_root(modelroot):
     model.ls()
     assert model.find_all_matches('**/+Character/+GeomNode')
     assert model.find_all_matches('**/+Character/+AnimBundleNode')
+
+def test_light_intensity(modelroot):
+    model = load_test_asset(modelroot, 'LitPlane.glb')
+
+    model.ls()
+
+    lightnp = model.find_all_matches('**/+PointLight')[0]
+    assert lightnp
+    light = lightnp.node()
+    assert light.color == p3d.LColor(60, 60, 60, 60)
+
+    lightnp = model.find_all_matches('**/+DirectionalLight')[0]
+    assert lightnp
+    light = lightnp.node()
+    assert light.color == p3d.LColor(0.5, 0.5, 0.5, 0.5)
