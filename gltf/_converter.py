@@ -192,7 +192,6 @@ class Converter():
 
         for texid, gltf_tex in enumerate(gltf_data.get('textures', [])):
             self.load_texture(texid, gltf_tex, gltf_data)
-        self.load_fallback_texture()
 
         for matid, gltf_mat in enumerate(gltf_data.get('materials', [])):
             self.load_material(matid, gltf_mat)
@@ -553,27 +552,6 @@ class Converter():
         elif texture.get_num_components() == 4:
             texture.set_format(Texture.F_srgb_alpha)
 
-    def load_fallback_texture(self):
-        texture = Texture('pbr-fallback')
-        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgba)
-        texture.set_clear_color(LColor(1, 1, 1, 1))
-        texture.make_ram_image()
-
-        self.textures['__pbr-fallback'] = texture
-
-        texture = Texture('emission-fallback')
-        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_luminance)
-        texture.set_clear_color(LColor(1, 1, 1, 1))
-
-        self.textures['__emission-fallback'] = texture
-
-        texture = Texture('normal-fallback')
-        texture.setup_2d_texture(1, 1, Texture.T_unsigned_byte, Texture.F_rgb)
-        texture.set_clear_color(LColor(0.5, 0.5, 1, 1))
-        texture.make_ram_image()
-
-        self.textures['__normal-fallback'] = texture
-
     def load_texture(self, texid, gltf_tex, gltf_data):
         if 'source' not in gltf_tex:
             print(f"Texture '{texid}' has no source, skipping")
@@ -676,108 +654,29 @@ class Converter():
             self.mat_mesh_map[matid] = []
 
         pmat = Material(matname)
-        base_color_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
-        metallic_roughness_fallback = {'index': '__pbr-fallback', 'texCoord': 0}
-        emission_fallback = {'index': '__emission-fallback', 'texCoord': 0}
-        normal_fallback = {'index': '__normal-fallback', 'texCoord': 0}
-        texinfos = []
-
-        if self.settings.legacy_materials:
-            if 'pbrMetallicRoughness' in gltf_mat:
-                pbrsettings = gltf_mat['pbrMetallicRoughness']
-
-                pmat.set_diffuse(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-                texinfos.append(pbrsettings.get('baseColorTexture', base_color_fallback))
-                if texinfos[-1]['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texinfos[-1]['index']])
-                texinfos[-1]['mode'] = TextureStage.M_modulate
-
-            texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
-            texinfos[-1]['mode'] = TextureStage.M_normal
-        else:
-            mat_extensions = gltf_mat.get('extensions', {})
-            if 'BP_materials_legacy' in mat_extensions:
-                matsettings = mat_extensions['BP_materials_legacy']['bpLegacy']
-                pmat.set_shininess(matsettings['shininessFactor'])
-                pmat.set_ambient(LColor(*matsettings['ambientFactor']))
-
-                if 'diffuseTexture' in matsettings:
-                    texinfo = matsettings['diffuseTexture']
-                    texinfos.append(texinfo)
-                    if matsettings['diffuseTextureSrgb'] and texinfo['index'] in self.textures:
-                        self.make_texture_srgb(self.textures[texinfo['index']])
-                    texinfos[-1]['mode'] = TextureStage.M_modulate
-                else:
-                    pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
-
-                if 'emissionTexture' in matsettings:
-                    texinfo = matsettings['emissionTexture']
-                    texinfos.append(texinfo)
-                    if matsettings['emissionTextureSrgb'] and texinfo['index'] in self.textures:
-                        self.make_texture_srgb(self.textures[texinfo['index']])
-                    texinfos[-1]['mode'] = TextureStage.M_emission
-                else:
-                    pmat.set_emission(LColor(*matsettings['emissionFactor']))
-
-                if 'specularTexture' in matsettings:
-                    texinfo = matsettings['specularTexture']
-                    texinfos.append(texinfo)
-                    if matsettings['specularTextureSrgb'] and texinfo['index'] in self.textures:
-                        self.make_texture_srgb(self.textures[texinfo['index']])
-                else:
-                    pmat.set_specular(LColor(*matsettings['specularFactor']))
-            elif 'pbrMetallicRoughness' in gltf_mat:
-                pbrsettings = gltf_mat['pbrMetallicRoughness']
-
-                pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
-                texinfos.append(pbrsettings.get('baseColorTexture', base_color_fallback))
-                if texinfos[-1]['index'] in self.textures:
-                    self.make_texture_srgb(self.textures[texinfos[-1]['index']])
-
-                pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
-                pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
-                texinfos.append(pbrsettings.get('metallicRoughnessTexture', metallic_roughness_fallback))
-                texinfos[-1]['mode'] = TextureStage.M_selector
-
-            # Normal map
-            texinfos.append(gltf_mat.get('normalTexture', normal_fallback))
-            texinfos[-1]['mode'] = TextureStage.M_normal
-
-            # Emission map
-            pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
-            texinfos.append(gltf_mat.get('emissiveTexture', emission_fallback))
-            texinfos[-1]['mode'] = TextureStage.M_emission
-            if texinfos[-1]['index'] in self.textures:
-                self.make_texture_srgb(self.textures[texinfos[-1]['index']])
-
-            # Index of refraction
-            ior_ext = mat_extensions.get('KHR_materials_ior', {})
-            pmat.set_refractive_index(ior_ext.get('ior', 1.5))
-
-        double_sided = gltf_mat.get('doubleSided', False)
-        pmat.set_twoside(double_sided)
-
-        state = state.set_attrib(MaterialAttrib.make(pmat))
-
-        if double_sided:
-            state = state.set_attrib(CullFaceAttrib.make(CullFaceAttrib.MCullNone))
-
-        # Setup textures
         tex_attrib = TextureAttrib.make()
         tex_mat_attrib = None
-        for i, texinfo in enumerate(texinfos):
-            texdata = self.textures.get(texinfo['index'], None)
-            if texdata is None:
-                print(f"Could not find texture for key: {texinfo['index']}")
-                continue
 
-            texstage = TextureStage(str(i))
-            texstage.set_sort(i)
-            texstage.set_texcoord_name(InternalName.get_texcoord_name(str(texinfo.get('texCoord', 0))))
-            texstage.set_mode(texinfo.get('mode', TextureStage.M_modulate))
+        def add_texture(gltf_texture, slot_name, texmode, *, make_srgb=False):
+            nonlocal tex_attrib, tex_mat_attrib
+
+            if gltf_texture is None:
+                return
+
+            texdata = self.textures.get(gltf_texture['index'], None)
+            if texdata is None:
+                print(f"Could not find texture for key: {gltf_texture['index']}")
+                return
+
+            if make_srgb:
+                self.make_texture_srgb(texdata)
+
+            texstage = TextureStage(slot_name)
+            texstage.set_texcoord_name(InternalName.get_texcoord_name(str(gltf_texture.get('texCoord', 0))))
+            texstage.set_mode(texmode)
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
-            transform_ext = texinfo.get('extensions', {}).get('KHR_texture_transform')
+            transform_ext = gltf_texture.get('extensions', {}).get('KHR_texture_transform')
             if transform_ext:
                 if 'texCoord' in transform_ext:
                     # This overrides, if present.
@@ -807,6 +706,106 @@ class Converter():
                     tex_mat_attrib = TexMatrixAttrib.make(texstage, transform)
                 else:
                     tex_mat_attrib = tex_mat_attrib.add_stage(texstage, transform)
+
+        if self.settings.legacy_materials:
+            if 'pbrMetallicRoughness' in gltf_mat:
+                pbrsettings = gltf_mat['pbrMetallicRoughness']
+
+                pmat.set_diffuse(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
+                add_texture(
+                    pbrsettings.get('baseColorTexture'),
+                    'Base Color',
+                    TextureStage.M_modulate,
+                    make_srgb=True
+                )
+
+            add_texture(
+                gltf_mat.get('normalTexture'),
+                'Normal',
+                TextureStage.M_normal
+            )
+        else:
+            mat_extensions = gltf_mat.get('extensions', {})
+            if 'BP_materials_legacy' in mat_extensions:
+                matsettings = mat_extensions['BP_materials_legacy']['bpLegacy']
+                pmat.set_shininess(matsettings['shininessFactor'])
+                pmat.set_ambient(LColor(*matsettings['ambientFactor']))
+
+                if 'diffuseTexture' in matsettings:
+                    add_texture(
+                        matsettings['diffuseTexture'],
+                        'Diffuse',
+                        TextureStage.M_modulate,
+                        make_srgb=True
+                    )
+                else:
+                    pmat.set_diffuse(LColor(*matsettings['diffuseFactor']))
+
+                if 'emissionTexture' in matsettings:
+                    add_texture(
+                        matsettings['emissionTexture'],
+                        'Emission',
+                        TextureStage.M_emission,
+                        make_srgb=True
+                    )
+                else:
+                    pmat.set_emission(LColor(*matsettings['emissionFactor']))
+
+                if 'specularTexture' in matsettings:
+                    add_texture(
+                        matsettings['specularTexture'],
+                        'Specular',
+                        TextureStage.M_modulate,
+                        make_srgb=True
+                    )
+                else:
+                    pmat.set_specular(LColor(*matsettings['specularFactor']))
+            elif 'pbrMetallicRoughness' in gltf_mat:
+                pbrsettings = gltf_mat['pbrMetallicRoughness']
+
+                pmat.set_base_color(LColor(*pbrsettings.get('baseColorFactor', [1.0, 1.0, 1.0, 1.0])))
+                add_texture(
+                    pbrsettings.get('baseColorTexture'),
+                    'Base Color',
+                    TextureStage.M_modulate,
+                    make_srgb=True
+                )
+
+                pmat.set_metallic(pbrsettings.get('metallicFactor', 1.0))
+                pmat.set_roughness(pbrsettings.get('roughnessFactor', 1.0))
+                add_texture(
+                    pbrsettings.get('metallicRoughnessTexture'),
+                    'Metal Rough',
+                    TextureStage.M_selector,
+                )
+
+            # Normal map
+            add_texture(
+                gltf_mat.get('normalTexture'),
+                'Normal',
+                TextureStage.M_normal
+            )
+
+            # Emission map
+            add_texture(
+                gltf_mat.get('emissiveTexture'),
+                'Emissive',
+                TextureStage.M_emission,
+                make_srgb=True
+            )
+            pmat.set_emission(LColor(*gltf_mat.get('emissiveFactor', [0.0, 0.0, 0.0]), w=0.0))
+
+            # Index of refraction
+            ior_ext = mat_extensions.get('KHR_materials_ior', {})
+            pmat.set_refractive_index(ior_ext.get('ior', 1.5))
+
+        double_sided = gltf_mat.get('doubleSided', False)
+        pmat.set_twoside(double_sided)
+
+        state = state.set_attrib(MaterialAttrib.make(pmat))
+
+        if double_sided:
+            state = state.set_attrib(CullFaceAttrib.make(CullFaceAttrib.MCullNone))
 
         state = state.set_attrib(tex_attrib)
         if tex_mat_attrib:
@@ -1099,16 +1098,14 @@ class Converter():
             )
             pmat = Material('fallback material')
             matattrib = MaterialAttrib.make(pmat)
-            texattrib = TextureAttrib.make(self.textures.get('__pbr-fallback'))
-            mat = RenderState.make(matattrib, texattrib)
+            mat = RenderState.make(matattrib)
         elif matid not in self.mat_states:
             print(
                 f"Warning: material with name {matid} has no associated mat state, using an empty RenderState"
             )
             pmat = Material('fallback material')
             matattrib = MaterialAttrib.make(pmat)
-            texattrib = TextureAttrib.make(self.textures.get('__pbr-fallback'))
-            mat = RenderState.make(matattrib, texattrib)
+            mat = RenderState.make(matattrib)
         else:
             mat = self.mat_states[gltf_primitive['material']]
             self.mat_mesh_map[gltf_primitive['material']].append((geom_node.name, primitiveid))
