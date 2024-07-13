@@ -140,6 +140,7 @@ class Converter():
         self.buffers = {}
         self.lights = {}
         self.textures = {}
+        self.texture_stages = {}
         self.mat_states = {}
         self.mat_mesh_map = {}
         self.meshes = {}
@@ -540,6 +541,18 @@ class Converter():
         else:
             return buffdata
 
+    def get_texture_stage(self, slot_name, texmode, texcoord):
+        texcoord = str(texcoord)
+        tshash = slot_name + str(texmode) + texcoord
+
+        if tshash not in self.texture_stages:
+            texstage = TextureStage(slot_name)
+            texstage.set_texcoord_name(InternalName.get_texcoord_name(texcoord))
+            texstage.set_mode(texmode)
+            self.texture_stages[tshash] = texstage
+
+        return self.texture_stages[tshash]
+
     def make_texture_srgb(self, texture):
         if self.settings.no_srgb:
             return
@@ -671,9 +684,11 @@ class Converter():
             if make_srgb:
                 self.make_texture_srgb(texdata)
 
-            texstage = TextureStage(slot_name)
-            texstage.set_texcoord_name(InternalName.get_texcoord_name(str(gltf_texture.get('texCoord', 0))))
-            texstage.set_mode(texmode)
+            texstage = self.get_texture_stage(
+                slot_name,
+                texmode,
+                gltf_texture.get('texCoord', 0)
+            )
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
             transform_ext = gltf_texture.get('extensions', {}).get('KHR_texture_transform')
