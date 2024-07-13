@@ -676,6 +676,8 @@ class Converter():
             if gltf_texture is None:
                 return
 
+            transform_ext = gltf_texture.get('extensions', {}).get('KHR_texture_transform')
+
             texdata = self.textures.get(gltf_texture['index'], None)
             if texdata is None:
                 print(f"Could not find texture for key: {gltf_texture['index']}")
@@ -684,19 +686,19 @@ class Converter():
             if make_srgb:
                 self.make_texture_srgb(texdata)
 
+            texcoord = gltf_texture.get('texCoord', 0)
+            if transform_ext and 'texCoord' in transform_ext:
+                # This overrides, if present.
+                texcoord = transform_ext['texCoord']
+
             texstage = self.get_texture_stage(
                 slot_name,
                 texmode,
-                gltf_texture.get('texCoord', 0)
+                texcoord
             )
             tex_attrib = tex_attrib.add_on_stage(texstage, texdata)
 
-            transform_ext = gltf_texture.get('extensions', {}).get('KHR_texture_transform')
             if transform_ext:
-                if 'texCoord' in transform_ext:
-                    # This overrides, if present.
-                    texstage.set_texcoord_name(InternalName.get_texcoord_name(str(transform_ext['texCoord'])))
-
                 # glTF uses a transform origin of the upper-left corner of the
                 # texture, whereas Panda uses the lower-left corner.
                 mat = Mat3()
