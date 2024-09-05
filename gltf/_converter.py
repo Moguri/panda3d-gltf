@@ -1903,6 +1903,9 @@ class Converter():
 
                         vertices = prim_tmp.get_vertex_list()
                         for i in range(0, len(vertices), 3):
+                            if i+2 >= len(vertices):
+                                print(f'Less than 3 vertices remaining, skipping polygon.')
+                                continue
                             pos0 = vdata[vertices[i]].xyz
                             pos1 = vdata[vertices[i + 1]].xyz
                             pos2 = vdata[vertices[i + 2]].xyz
