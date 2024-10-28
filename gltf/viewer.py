@@ -1,6 +1,5 @@
 import math
 import os
-from pathlib import Path
 import sys
 
 from direct.showbase.ShowBase import ShowBase
@@ -15,11 +14,6 @@ p3d.load_prc_file_data(
     'window-size 1024 768\n'
     'texture-minfilter mipmap\n'
     'texture-anisotropic-degree 16\n'
-    'notify-level-simplepbr info\n'
-    'show-frame-rate-meter true\n'
-    'frame-rate-meter-milliseconds true\n'
-    'gl-version 3 2\n'
-    'gl-debug t\n'
 )
 
 
@@ -31,22 +25,7 @@ class App(ShowBase):
 
         super().__init__()
 
-        cubemap_path = Path(__file__).parent / 'hdri' / '512_cg_#.hdr'
-        # cubemap_path = p3d.Filename.from_os_specific(
-        #     os.path.join(os.path.dirname(__file__), '..', 'cubemap.env')
-        # )
-        self.env_map = simplepbr.EnvPool.ptr().load(
-            cubemap_path,
-            # prefiltered_size=256,
-            # prefiltered_samples=16
-        )
-        # self.env_map = simplepbr.EnvMap.from_file_path(cubemap_path)
-        self.pipeline = simplepbr.init(
-            # env_map=self.env_map,
-            use_normal_maps=True,
-        )
-
-        self.set_background_color(0, 0, 0, 1)
+        self.pipeline = simplepbr.init()
 
         infile = p3d.Filename.from_os_specific(os.path.abspath(sys.argv[1]))
         p3d.get_model_path().prepend_directory(infile.get_dirname())
@@ -64,8 +43,6 @@ class App(ShowBase):
         self.accept('e', self.toggle_emission_maps)
         self.accept('o', self.toggle_occlusion_maps)
         self.accept('a', self.toggle_ambient_light)
-        self.accept('i', self.toggle_ibl)
-        # self.accept('b', self.toggle_calc_binormals)
         self.accept('shift-l', self.model_root.ls)
         self.accept('shift-a', self.model_root.analyze)
 
@@ -101,7 +78,7 @@ class App(ShowBase):
 
         # Add some ambient light
         self.ambient = self.render.attach_new_node(p3d.AmbientLight('ambient'))
-        self.ambient.node().set_color((.1, .1, .1, 1))
+        self.ambient.node().set_color((.2, .2, .2,.2))
         self.render.set_light(self.ambient)
 
         if self.model_root.find('**/+Character'):
@@ -124,15 +101,6 @@ class App(ShowBase):
             self.render.clear_light(self.ambient)
         else:
             self.render.set_light(self.ambient)
-
-    def toggle_ibl(self):
-        if self.pipeline.env_map:
-            self.pipeline.env_map = None
-        else:
-            self.pipeline.env_map = self.env_map
-
-    def toggle_calc_binormals(self):
-        self.pipeline.calculate_binormals = not self.pipeline.calculate_binormals
 
 def main():
     App().run()
