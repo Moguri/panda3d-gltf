@@ -6,8 +6,7 @@ def is_glb_file(filepath):
     with open(filepath, 'rb') as glbfile:
         if glbfile.read(4) == b'glTF':
             return True
-        else:
-            return False
+        return False
 
 
 def parse_glb_data(data):

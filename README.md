@@ -75,30 +75,14 @@ This is a simple viewer (like `pview`) to view glTF (or any other file format su
 
 ## Running Tests
 
-First install `panda3d-gltf` in editable mode along with `test` extras:
-
 ```bash
-pip install -e .[test]
-```
-
-Then run the test suite with `pytest`:
-
-```bash
-pytest
+uv run pytest
 ```
 
 ## Building Wheels
 
-Install `build`:
-
 ```bash
-pip install --upgrade build
-```
-
-and run:
-
-```bash
-python -m build
+uv build
 ```
 
 ## License

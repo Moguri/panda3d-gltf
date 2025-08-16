@@ -24,13 +24,17 @@ dependencies = [
     "panda3d >= 1.10.8",
     "panda3d-simplepbr >= 0.6",
 ]
-requires-python = ">= 3.8"
+requires-python = ">= 3.9"
 
 [project.urls]
 homepage = "https://github.com/Moguri/panda3d-gltf"
 
-[project.optional-dependencies]
-test = ["pytest", "pylint~=3.1.0", "pytest-pylint"]
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff>=0.12.9",
+    "pytest-ruff",
+]
 
 [project.scripts]
 gltf2bam = "gltf.cli:main"
@@ -48,5 +52,48 @@ packages = ["gltf"]
 [tool.setuptools.dynamic]
 version = {attr = "gltf.version.__version__"}
 
+[tool.ruff.lint]
+extend-select = [
+    #"ALL",
+    "E",
+    "F",
+    "YTT",
+    "ASYNC",
+    "BLE",
+    "B",
+    "A",
+    "C4",
+    "PIE",
+    "PT",
+    "RSE",
+    "RET",
+    "SLF",
+    "SLOT",
+    "N",
+    "PERF",
+    "PLC",
+    "PLE",
+    "PLW",
+    "UP",
+    "FURB",
+    # Try to enable these later
+    #"S",
+    #"I",
+    #"COM",
+    #"PTH",
+    #"TRY",
+    #"SIM",
+    #"FBT",
+    #"RUF",
+]
+ignore = [
+    "E501",  # Line too long
+    "E731",  # Do not assign a lambda expression, use a def
+    # Fix these
+    "F403",  # 'from module import *' used; unable to detect undefined names
+    "F405",  # Name may be undefined, or defined from star imports: *
+    "PLW2901", # loop variable overwritten by assignment target
+]
+
 [tool.pytest.ini_options]
-addopts = "--pylint"
+addopts = "--ruff"

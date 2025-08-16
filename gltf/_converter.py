@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import base64
 import collections
 import itertools
@@ -7,18 +5,17 @@ import os
 import math
 import struct
 import urllib.parse
-import pprint # pylint: disable=unused-import
 
 from dataclasses import dataclass
 
-from panda3d.core import * # pylint: disable=wildcard-import
+from panda3d.core import *
 import panda3d.core as p3d
 try:
     from panda3d import bullet
     HAVE_BULLET = True
 except ImportError:
     HAVE_BULLET = False
-from direct.stdpy.file import open # pylint: disable=redefined-builtin
+from direct.stdpy.file import open  # noqa: A004
 
 from ._converter_maps import (
     ATTRIB_CONTENT_MAP,
@@ -111,8 +108,8 @@ def get_lerp_factor(currtime: float, lasttime: float, nexttime: float) -> float:
 class CharInfo:
     character: p3d.Character
     nodepath: p3d.NodePath
-    jvtmap: 'dict[int, p3d.JointVertexTransform]'
-    cvsmap: 'dict[tuple[int, str], p3d.CharacterVertexSlider]'
+    jvtmap: dict[int, p3d.JointVertexTransform]
+    cvsmap: dict[tuple[int, str], p3d.CharacterVertexSlider]
 
     def __init__(self, name: str):
         self.character = p3d.Character(name)
@@ -121,9 +118,7 @@ class CharInfo:
         self.cvsmap = {}
 
 
-class Converter():
-
-
+class Converter:
     def __init__(
             self,
             filepath,
@@ -253,7 +248,7 @@ class Converter():
             charinfo = self.characters.get(skinid, None)
             scene_extras = get_extras(gltf_scene)
             node_name = gltf_node.get('name', 'node'+str(nodeid))
-            if nodeid in self._joint_nodes and not nodeid in self.skeletons:
+            if nodeid in self._joint_nodes and nodeid not in self.skeletons:
                 # Handle non-joint children of joints, but don't add joints themselves
                 for child_nodeid in gltf_node.get('children', []):
                     add_node(root, gltf_scene, child_nodeid)
@@ -482,8 +477,10 @@ class Converter():
         uri = gltf_buffer['uri']
         if uri == '_glb_bin' and buffid == 0:
             buff_data = gltf_buffer['_glb_bin']
-        elif uri.startswith('data:application/octet-stream;base64') or \
-           uri.startswith('data:application/gltf-buffer;base64'):
+        elif uri.startswith((
+            'data:application/octet-stream;base64',
+            'data:application/gltf-buffer;base64',
+        )):
             buff_data = gltf_buffer['uri'].split(',')[1]
             buff_data = base64.b64decode(buff_data)
         elif uri.endswith('.bin'):
@@ -538,8 +535,7 @@ class Converter():
 
         if unpack:
             return list(map(convertfn, struct.iter_unpack(f'<{formatstr}', buffdata)))
-        else:
-            return buffdata
+        return buffdata
 
     def get_texture_stage(self, slot_name, texmode, texcoord):
         texcoord = str(texcoord)
@@ -916,14 +912,17 @@ class Converter():
         accessors = sorted(accessors, key=lambda x: x['bufferView'])
         data_copies = []
         is_skinned = 'JOINTS_0' in mesh_attribs
-        calc_normals = not 'NORMAL' in mesh_attribs
-        calc_tangents = not 'TANGENT' in mesh_attribs
+        calc_normals = 'NORMAL' not in mesh_attribs
+        calc_tangents = 'TANGENT' not in mesh_attribs
         normalize_weights = False
 
-        for buffview, accs in itertools.groupby(accessors, key=lambda x: x['bufferView']):
+        for buffview, accs_unsorted in itertools.groupby(accessors, key=lambda x: x['bufferView']):
             buffview = gltf_data['bufferViews'][buffview]
-            accs = sorted(accs, key=lambda x: x.get('byteOffset', 0))
-            is_interleaved = len(accs) > 1 and accs[1].get('byteOffset', 0) < buffview['byteStride']
+            accs = sorted(accs_unsorted, key=lambda x: x.get('byteOffset', 0))
+            is_interleaved = (
+                len(accs) > 1 
+                and accs[1].get('byteOffset', 0) < buffview['byteStride']
+            )
 
             varray = GeomVertexArrayFormat()
             for acc in accs:
@@ -1585,7 +1584,8 @@ class Converter():
 
             if interpolation_mode == 'STEP':
                 return output_buff[lastidx]
-            elif interpolation_mode == 'LINEAR':
+
+            if interpolation_mode == 'LINEAR':
                 nexttime = input_buff[nextidx]
                 lasttime = input_buff[lastidx]
                 lerpfactor = get_lerp_factor(currtime, lasttime, nexttime)
@@ -1593,10 +1593,9 @@ class Converter():
                 if path == 'rotation':
                     return slerp(output_buff[lastidx], output_buff[nextidx], lerpfactor)
                 return vlerp(output_buff[lastidx], output_buff[nextidx], lerpfactor)
-            else:
-                return RuntimeError(
-                    f'Unrecognized interpolation mode ({interpolation_mode}) found on {bone_name}:{path}'
-                )
+            raise RuntimeError(
+                f'Unrecognized interpolation mode ({interpolation_mode}) found on {bone_name}:{path}'
+            )
 
         for i in range(num_frames):
             frame_translation = calculate_frame_value(i, 'translation')
@@ -1709,7 +1708,7 @@ class Converter():
                                 + target_weights[nextidx] * lerpfactor
                             )
                         else:
-                            return RuntimeError(
+                            raise RuntimeError(
                                 f'Unrecognized interpolation mode ({interpolation_mode}) found on {target_name}'
                             )
 
@@ -1866,8 +1865,9 @@ class Converter():
                 mass = 1.0 if gltf_rigidbody is None else gltf_rigidbody.get('mass', 1.0)
                 phynode.set_mass(mass)
             return phynode
-        else:
-            print(f"Could not create collision shape for object ({node_name})")
+
+        print(f"Could not create collision shape for object ({node_name})")
+        return None
 
     def load_physics_builtin(self, node_name, geomnode, shape_type, bounding_box, radius, height, intangible):
         phynode = CollisionNode(node_name)
@@ -1975,5 +1975,6 @@ class Converter():
 
         if phynode.solids:
             return phynode
-        else:
-            print(f"Could not create collision shape for object ({node_name})")
+
+        print(f"Could not create collision shape for object ({node_name})")
+        return None
