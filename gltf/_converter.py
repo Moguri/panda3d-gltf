@@ -499,15 +499,29 @@ class Converter:
         buff = self.buffers[buffview['buffer']]
         start = buffview.get('byteOffset', 0)
         end = start + buffview['byteLength']
-        stride = buffview.get('byteStride', 1)
-        return memoryview(buff)[start:end:stride]
+        # The byteStride attribute is an element-level stride, not a
+        # byte-level slice step. Applying it as memoryview[::stride] skips
+        # (stride-1) bytes between every single byte, creating a
+        # non-C-contiguous view that struct.iter_unpack rejects.
+        # Producing a BufferError like this:
+        #    BufferError: memoryview: underlying buffer is not C-contiguous
+        #    :loader(error): Loading scene.gltf failed with BufferError exception.
+        #    :loader(error): Couldn't load file <actual_path>/scene.gltf: invalid.
+        # Stride-aware extraction is moved to get_buffer_from_accessor.
+        return memoryview(buff)[start:end]
+
+    def get_buffer_stride(self, gltf_data, viewid, element_size):
+        view = gltf_data['bufferViews'][viewid]
+        return view.get('byteStride', element_size)
 
     def get_buffer_from_accessor(self, gltf_data, accid, unpack=True):
         acc = gltf_data['accessors'][accid]
         viewid = acc['bufferView']
         buff_view = self.get_buffer_view(gltf_data, viewid)
-        if 'byteOffset' in acc:
-            buff_view = buff_view[acc['byteOffset']:]
+
+        acc_byte_offset = acc.get('byteOffset', 0)
+        if acc_byte_offset:
+            buff_view = buff_view[acc_byte_offset:]
 
         formatstr = (
             COMPONENT_FORMT_STR_MAP[acc['componentType']]
@@ -530,12 +544,36 @@ class Converter:
             COMPONENT_SIZE_MAP[acc['componentType']]
             * COMPONENT_NUM_MAP[acc['type']]
         )
-        end = acc['count'] * element_size
-        buffdata = buff_view[:end]
+        bv_stride = self.get_buffer_stride(gltf_data, viewid, element_size)
 
-        if unpack:
+        if not unpack:
+            # Caller wants raw bytes (e.g. index buffer copy).
+            if bv_stride == element_size:
+                return buff_view[:acc['count'] * element_size]
+            # Copy each element from interleaved into a contiguous buffer.
+            out = bytearray(acc['count'] * element_size)
+            for i in range(acc['count']):
+                src = i * bv_stride
+                dst = i * element_size
+                out[dst:dst + element_size] = buff_view[src:src + element_size]
+            return memoryview(out)
+
+        if bv_stride == element_size:
+            end = acc['count'] * element_size
+            # Buffer already contiguous, just cut at element size.
+            buffdata = bytes(buff_view[:end])
             return list(map(convertfn, struct.iter_unpack(f'<{formatstr}', buffdata)))
-        return buffdata
+
+        # Extract each element individually at its stride offset from
+        # interleaved memory.
+        fmt = f'<{formatstr}'
+        result = []
+        for i in range(acc['count']):
+            start = i * bv_stride
+            end = i * bv_stride + element_size
+            chunk = bytes(buff_view[start:end])
+            result.append(convertfn(struct.unpack(fmt, chunk)))
+        return result
 
     def get_texture_stage(self, slot_name, texmode, texcoord):
         texcoord = str(texcoord)
